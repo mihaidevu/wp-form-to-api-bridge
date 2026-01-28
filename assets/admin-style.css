@@ -1,0 +1,64 @@
+.wpftab-admin-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    font-family: Arial, sans-serif;
+}
+
+.wpftab-admin-container h2 {
+    margin-top: 25px;
+    margin-bottom: 15px;
+    font-size: 18px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.wpftab-admin-container .wpftab-field-group {
+    margin-bottom: 15px;
+}
+
+.wpftab-admin-container label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.wpftab-admin-container input[type="text"],
+.wpftab-admin-container input[type="url"],
+.wpftab-admin-container input[type="email"],
+.wpftab-admin-container select,
+.wpftab-admin-container textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.wpftab-admin-container input[type="submit"],
+.wpftab-admin-container button {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.wpftab-admin-container input[type="submit"]:hover,
+.wpftab-admin-container button:hover {
+    background: #006799;
+}
+
+.wpftab-admin-container input[type="checkbox"],
+.wpftab-admin-container input[type="radio"] {
+    width: auto;
+    margin-right: 5px;
+}
