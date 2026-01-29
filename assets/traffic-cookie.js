@@ -1,6 +1,4 @@
-// traffic-cookie.js
 (function() {
-    // 1️⃣ Preia UTM din URL
     function getUTMParameters() {
         const utmParameters = {};
         const utmKeys = ['utm_source','utm_medium','utm_campaign','utm_term','utm_adgroup','utm_content'];
@@ -17,7 +15,6 @@
         return utmParameters;
     }
 
-    // 2️⃣ Determină sursa traficului
     function getTrafficSource(referrer) {
         const trafficSources = {
             'google.com': (url) => url.searchParams.get('utm_medium') === 'cpc' ? 'Google Ads' : 'Google Organic',
@@ -40,9 +37,8 @@
         }
     }
 
-    // 3️⃣ Setează cookie-ul
     function setReferrerSourceCookie() {
-        if ((document.cookie || '').includes('referrer_source=')) return; // nu rescrie
+        if ((document.cookie || '').includes('referrer_source=')) return;
 
         const utmParameters = getUTMParameters();
         const trafficSource = getTrafficSource(document.referrer || '');
@@ -65,12 +61,7 @@
             const expires = "expires=" + now.toUTCString();
             const secureFlag = location.protocol === 'https:' ? '; Secure' : '';
             document.cookie = `referrer_source=${serializedData}; path=/; ${expires}; SameSite=Lax${secureFlag}`;
-
-            console.log('Cookie set (encoded):', document.cookie);
-            console.log('Cookie set (decoded):', data);
-        } catch (_) {
-            console.log('Error setting cookie');
-        }
+        } catch (_) {}
     }
 
     document.addEventListener('DOMContentLoaded', setReferrerSourceCookie);

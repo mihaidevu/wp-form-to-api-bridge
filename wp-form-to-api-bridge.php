@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: WP Form to API Bridge
- * Description: Sends CF7/other form submissions to an external API using UTM/traffic cookie. Full debug included.
+ * Description: Sends CF7 form submissions to an external API with UTM and traffic cookie support.
  * Version: 1.1.0
  * Author: You
  * License: GPL-2.0-or-later

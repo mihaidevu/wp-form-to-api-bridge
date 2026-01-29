@@ -16,7 +16,10 @@ function wpftab_render_global_settings() {
     ]);
     
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_admin_referer('wpftab_save_global', 'wpftab_nonce')) {
-        update_option('wpftab_api_url', sanitize_text_field($_POST['wpftab_api_url'] ?? ''));
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Cheating?', 'wpftab'));
+        }
+        update_option('wpftab_api_url', esc_url_raw($_POST['wpftab_api_url'] ?? ''));
         update_option('wpftab_api_key', sanitize_text_field($_POST['wpftab_api_key'] ?? ''));
         foreach ($utm_map as $key => $v) {
             $utm_map[$key] = sanitize_text_field($_POST['wpftab_utm_map'][$key] ?? '');

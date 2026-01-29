@@ -91,10 +91,12 @@ add_action('wpcf7_mail_sent', function($contact_form) {
 
         foreach ($utm_map as $cookie_key => $api_key_name) {
             if (empty($api_key_name)) continue;
-            
-            $data[$api_key_name] = isset($cookie_data[$cookie_key]) 
+
+            $raw_value = isset($cookie_data[$cookie_key]) 
                 ? (string)$cookie_data[$cookie_key] 
                 : '';
+
+            $data[$api_key_name] = sanitize_text_field($raw_value);
         }
 
         $api_url = (string) get_option('wpftab_api_url', '');
@@ -120,11 +122,6 @@ add_action('wpcf7_mail_sent', function($contact_form) {
             
             $debug_content = "\n--- FINAL JSON PAYLOAD (sent to API) ---\n";
             $debug_content .= $json_payload."\n\n";
-            
-            $debug_content .= "--- REQUEST HEADERS ---\n";
-            $debug_content .= "Content-Type: application/json\n";
-            $debug_content .= "x-api-key: ".(!empty($api_key) ? substr($api_key, 0, 8).'...'.substr($api_key, -4) : 'NOT SET')."\n\n";
-            
             $debug_content .= "--- REQUEST SUMMARY ---\n";
             $debug_content .= "Method: POST\n";
             $debug_content .= "URL: {$api_url}\n";

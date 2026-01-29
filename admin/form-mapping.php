@@ -9,6 +9,9 @@ function wpftab_render_form_mapping() {
     $custom_fields = get_option('wpftab_custom_fields', []);
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_admin_referer('wpftab_save_form_map', 'wpftab_nonce')) {
+        if (!current_user_can('manage_options')) {
+            wp_die(__('Cheating?', 'wpftab'));
+        }
         $form_id = intval($_POST['form_id'] ?? 0);
         
         if ($form_id > 0) {
@@ -178,7 +181,7 @@ function wpftab_render_form_mapping() {
                                     <tr>
                                         <td>
                                             <input type="text" 
-                                                   name="wpftab_custom_fields[<?php echo $index; ?>][key]" 
+                                                   name="wpftab_custom_fields[<?php echo esc_attr($index); ?>][key]" 
                                                    value="<?php echo esc_attr($field['key'] ?? ''); ?>"
                                                    placeholder="e.g. form_name"
                                                    class="regular-text"
@@ -186,7 +189,7 @@ function wpftab_render_form_mapping() {
                                         </td>
                                         <td>
                                             <input type="text" 
-                                                   name="wpftab_custom_fields[<?php echo $index; ?>][value]" 
+                                                   name="wpftab_custom_fields[<?php echo esc_attr($index); ?>][value]" 
                                                    value="<?php echo esc_attr($field['value'] ?? ''); ?>"
                                                    placeholder="e.g. Contact Form 1"
                                                    class="regular-text"
