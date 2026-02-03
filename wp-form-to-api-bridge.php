@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: WP Form to API Bridge
+ * Plugin Name: KingMaker API Bridge
  * Description: Sends CF7 form submissions to an external API with UTM and traffic cookie support.
  * Version: 1.1.0
  * Author: You
@@ -14,8 +14,8 @@ require_once plugin_dir_path(__FILE__) . 'admin/form-mapping.php';
 
 add_action('admin_menu', function() {
     add_menu_page(
-        'WP Form to API Bridge',        
-        'WP Form to API Bridge',        
+        'KingMaker API Bridge',        
+        'KingMaker API Bridge',        
         'manage_options',               
         'wpftab_global_settings',       
         'wpftab_render_global_settings',

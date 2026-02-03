@@ -9,6 +9,7 @@ $wpftab_options = [
     'wpftab_api_url',
     'wpftab_api_key',
     'wpftab_custom_fields',
+    'wpftab_questions_answers',
 ];
 
 foreach ($wpftab_options as $option_name) {

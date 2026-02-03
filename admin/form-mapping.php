@@ -7,6 +7,7 @@ function wpftab_render_form_mapping() {
     $forms = wpftab_get_cf7_forms();
     $field_map = get_option('wpftab_field_map', []);
     $custom_fields = get_option('wpftab_custom_fields', []);
+    $questions_answers = get_option('wpftab_questions_answers', []);
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_admin_referer('wpftab_save_form_map', 'wpftab_nonce')) {
         if (!current_user_can('manage_options')) {
@@ -40,6 +41,25 @@ function wpftab_render_form_mapping() {
             }
             
             update_option('wpftab_custom_fields', $custom_fields);
+        }
+
+        if ($form_id > 0 && isset($_POST['wpftab_questions_answers']) && is_array($_POST['wpftab_questions_answers'])) {
+            $questions_answers[$form_id] = [];
+            foreach ($_POST['wpftab_questions_answers'] as $qa) {
+                if (!is_array($qa)) continue;
+                $question = sanitize_text_field($qa['question'] ?? '');
+                $source = isset($qa['source']) && $qa['source'] === 'field' ? 'field' : 'custom';
+                $value = sanitize_text_field($qa['value'] ?? '');
+                $field = sanitize_text_field($qa['field'] ?? '');
+                if (empty($question)) continue;
+                $questions_answers[$form_id][] = [
+                    'question' => $question,
+                    'source'   => $source,
+                    'value'    => $value,
+                    'field'    => $field
+                ];
+            }
+            update_option('wpftab_questions_answers', $questions_answers);
         }
         
         if ($form_id > 0 && isset($_POST['wpftab_field_map']) && is_array($_POST['wpftab_field_map'])) {
@@ -87,10 +107,27 @@ function wpftab_render_form_mapping() {
     if (count($field_map) !== count(get_option('wpftab_field_map', []))) {
         update_option('wpftab_field_map', $field_map);
     }
+    foreach ($custom_fields as $saved_form_id => $vals) {
+        if (!in_array($saved_form_id, $existing_form_ids)) {
+            unset($custom_fields[$saved_form_id]);
+        }
+    }
+    if (count($custom_fields) !== count(get_option('wpftab_custom_fields', []))) {
+        update_option('wpftab_custom_fields', $custom_fields);
+    }
+    foreach ($questions_answers as $saved_form_id => $vals) {
+        if (!in_array($saved_form_id, $existing_form_ids)) {
+            unset($questions_answers[$saved_form_id]);
+        }
+    }
+    if (count($questions_answers) !== count(get_option('wpftab_questions_answers', []))) {
+        update_option('wpftab_questions_answers', $questions_answers);
+    }
 
     $selected_form_id = isset($_GET['form_id']) ? intval($_GET['form_id']) : (isset($_POST['form_id']) ? intval($_POST['form_id']) : 0);
     $form_fields = [];
     $form_custom_fields = [];
+    $form_questions_answers = [];
     if ($selected_form_id > 0) {
         $form_fields = wpftab_get_cf7_form_fields($selected_form_id);
         
@@ -111,6 +148,25 @@ function wpftab_render_form_mapping() {
             }
         } else {
             $form_custom_fields = [];
+        }
+
+        if (isset($questions_answers[$selected_form_id]) && is_array($questions_answers[$selected_form_id])) {
+            $current_field_names = array_keys($form_fields);
+            $form_questions_answers = array_filter($questions_answers[$selected_form_id], function($qa) use ($current_field_names) {
+                if (empty($qa['question'])) return false;
+                if (isset($qa['source']) && $qa['source'] === 'field' && !empty($qa['field'])) {
+                    if (!in_array($qa['field'], $current_field_names)) return false;
+                }
+                return true;
+            });
+            $form_questions_answers = array_values($form_questions_answers);
+            if (count($form_questions_answers) !== count($questions_answers[$selected_form_id])) {
+                $questions_answers[$selected_form_id] = $form_questions_answers;
+                if (empty($form_questions_answers)) {
+                    unset($questions_answers[$selected_form_id]);
+                }
+                update_option('wpftab_questions_answers', $questions_answers);
+            }
         }
     }
     ?>
@@ -210,6 +266,67 @@ function wpftab_render_form_mapping() {
                     </p>
                 </div>
 
+                <h3 style="margin-top: 30px;">Questions & Answers fields</h3>
+                <p>Build <code>questionsAndAnswers</code> for the API: each row has a <strong>question</strong> name (e.g. project, category) and either a <strong>custom value</strong> or a <strong>form field</strong> whose value(s) become the answers array.</p>
+                <div id="questions-answers-container">
+                    <table class="wp-list-table widefat fixed striped" id="questions-answers-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">Question</th>
+                                <th style="width: 18%;">Source</th>
+                                <th style="width: 28%;">Custom value (if Custom)</th>
+                                <th style="width: 22%;">Form field (if Form field)</th>
+                                <th style="width: 10%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="questions-answers-tbody">
+                            <?php if (!empty($form_questions_answers)): ?>
+                                <?php foreach ($form_questions_answers as $idx => $qa): ?>
+                                    <?php $src = isset($qa['source']) && $qa['source'] === 'field' ? 'field' : 'custom'; ?>
+                                    <tr>
+                                        <td>
+                                            <input type="text"
+                                                   name="wpftab_questions_answers[<?php echo esc_attr($idx); ?>][question]"
+                                                   value="<?php echo esc_attr($qa['question'] ?? ''); ?>"
+                                                   placeholder="e.g. project"
+                                                   class="regular-text"
+                                                   style="width: 100%;">
+                                        </td>
+                                        <td>
+                                            <select name="wpftab_questions_answers[<?php echo esc_attr($idx); ?>][source]" class="wpftab-qa-source" style="width: 100%;">
+                                                <option value="custom" <?php selected($src, 'custom'); ?>>Custom</option>
+                                                <option value="field" <?php selected($src, 'field'); ?>>Form field</option>
+                                            </select>
+                                        </td>
+                                        <td class="wpftab-qa-value-cell">
+                                            <input type="text"
+                                                   name="wpftab_questions_answers[<?php echo esc_attr($idx); ?>][value]"
+                                                   value="<?php echo esc_attr($qa['value'] ?? ''); ?>"
+                                                   placeholder="e.g. PRIV"
+                                                   class="regular-text"
+                                                   style="width: 100%;">
+                                        </td>
+                                        <td class="wpftab-qa-field-cell">
+                                            <select name="wpftab_questions_answers[<?php echo esc_attr($idx); ?>][field]" class="regular-text" style="width: 100%;">
+                                                <option value="">-- Select field --</option>
+                                                <?php foreach ($form_fields as $fname => $finfo): ?>
+                                                    <option value="<?php echo esc_attr($fname); ?>" <?php selected($qa['field'] ?? '', $fname); ?>><?php echo esc_html($fname); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="button button-small wpftab-remove-qa" onclick="this.closest('tr').remove();">Remove</button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                    <p>
+                        <button type="button" class="button" id="add-questions-answers-row">+ Add Questions & Answers row</button>
+                    </p>
+                </div>
+
                 <p class="submit">
                     <input type="submit" name="submit" id="submit" class="button button-primary" value="Save Mapping">
                 </p>
@@ -254,6 +371,75 @@ function wpftab_render_form_mapping() {
             `;
             tbody.appendChild(row);
             fieldIndex++;
+        });
+
+        const formFieldNames = <?php echo json_encode(array_keys($form_fields)); ?>;
+        let qaRowIndex = <?php echo isset($form_questions_answers) && !empty($form_questions_answers) ? count($form_questions_answers) : 0; ?>;
+
+        function applyQaSourceState(row) {
+            var src = row.querySelector('.wpftab-qa-source');
+            var valueInput = row.querySelector('.wpftab-qa-value-cell input');
+            var fieldSelect = row.querySelector('.wpftab-qa-field-cell select');
+            if (!src || !valueInput || !fieldSelect) return;
+            if (src.value === 'field') {
+                valueInput.disabled = true;
+                valueInput.value = '';
+                fieldSelect.disabled = false;
+            } else {
+                valueInput.disabled = false;
+                fieldSelect.disabled = true;
+                fieldSelect.value = '';
+            }
+        }
+
+        document.getElementById('questions-answers-tbody')?.addEventListener('change', function(e) {
+            if (e.target.classList.contains('wpftab-qa-source')) applyQaSourceState(e.target.closest('tr'));
+        });
+
+        [].forEach.call(document.querySelectorAll('#questions-answers-tbody tr'), function(row) {
+            applyQaSourceState(row);
+        });
+
+        document.getElementById('add-questions-answers-row')?.addEventListener('click', function() {
+            const tbody = document.getElementById('questions-answers-tbody');
+            const fieldOptions = formFieldNames.map(function(name) {
+                return '<option value="' + name.replace(/"/g, '&quot;') + '">' + name.replace(/</g, '&lt;') + '</option>';
+            }).join('');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <input type="text"
+                           name="wpftab_questions_answers[${qaRowIndex}][question]"
+                           placeholder="e.g. project"
+                           class="regular-text"
+                           style="width: 100%;">
+                </td>
+                <td>
+                    <select name="wpftab_questions_answers[${qaRowIndex}][source]" class="wpftab-qa-source" style="width: 100%;">
+                        <option value="custom">Custom</option>
+                        <option value="field">Form field</option>
+                    </select>
+                </td>
+                <td class="wpftab-qa-value-cell">
+                    <input type="text"
+                           name="wpftab_questions_answers[${qaRowIndex}][value]"
+                           placeholder="e.g. PRIV"
+                           class="regular-text"
+                           style="width: 100%;">
+                </td>
+                <td class="wpftab-qa-field-cell">
+                    <select name="wpftab_questions_answers[${qaRowIndex}][field]" class="regular-text" style="width: 100%;">
+                        <option value="">-- Select field --</option>
+                        ${fieldOptions}
+                    </select>
+                </td>
+                <td>
+                    <button type="button" class="button button-small wpftab-remove-qa" onclick="this.closest('tr').remove();">Remove</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+            applyQaSourceState(row);
+            qaRowIndex++;
         });
     })();
     </script>

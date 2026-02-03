@@ -116,6 +116,34 @@ add_action('wpcf7_mail_sent', function($contact_form) {
             }
         }
 
+        $questions_answers_config = get_option('wpftab_questions_answers', []);
+        $questionsAndAnswers = [];
+        if (is_array($questions_answers_config) && isset($questions_answers_config[$form_id])) {
+            foreach ($questions_answers_config[$form_id] as $qa) {
+                if (empty($qa['question'])) continue;
+                $question = sanitize_text_field($qa['question']);
+                $source = isset($qa['source']) && $qa['source'] === 'field' ? 'field' : 'custom';
+                if ($source === 'custom') {
+                    $answers = [ sanitize_text_field($qa['value'] ?? '') ];
+                } else {
+                    $field_name = sanitize_text_field($qa['field'] ?? '');
+                    if ($field_name === '') continue;
+                    $raw = isset($posted_data[$field_name]) ? $posted_data[$field_name] : null;
+                    if (is_array($raw)) {
+                        $answers = array_values(array_map('strval', $raw));
+                    } elseif ($raw !== null && $raw !== '') {
+                        $answers = [ (string) $raw ];
+                    } else {
+                        $answers = [];
+                    }
+                }
+                $questionsAndAnswers[] = [ 'question' => $question, 'answers' => $answers ];
+            }
+        }
+        if (!empty($questionsAndAnswers)) {
+            $data['questionsAndAnswers'] = $questionsAndAnswers;
+        }
+
         try {
             $debug_file = plugin_dir_path(__FILE__) . '../debug-cf7.txt';
             $json_payload = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
