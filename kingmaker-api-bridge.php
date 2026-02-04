@@ -11,6 +11,7 @@ if (!defined('ABSPATH')) exit;
 
 require_once plugin_dir_path(__FILE__) . 'admin/global-settings.php';
 require_once plugin_dir_path(__FILE__) . 'admin/form-mapping.php';
+require_once plugin_dir_path(__FILE__) . 'admin/form-mapping-elementor.php';
 
 add_action('admin_menu', function() {
     add_menu_page(
@@ -25,16 +26,25 @@ add_action('admin_menu', function() {
 
     add_submenu_page(
         'wpftab_global_settings',
-        'Form Mapping',
-        'Form Mapping',
+        'CF7 Form Mapping',
+        'CF7 Form Mapping',
         'manage_options',
         'wpftab_form_mapping',
         'wpftab_render_form_mapping'
     );
+
+    add_submenu_page(
+        'wpftab_global_settings',
+        'Elementor Form Mapping',
+        'Elementor Form Mapping',
+        'manage_options',
+        'wpftab_form_mapping_elementor',
+        'wpftab_render_form_mapping_elementor'
+    );
 });
 
 add_action('admin_enqueue_scripts', function($hook) {
-    if ($hook !== 'toplevel_page_wpftab_global_settings' && $hook !== 'wp-form-to-api-bridge_page_wpftab_form_mapping') return;
+    if ($hook !== 'toplevel_page_wpftab_global_settings' && $hook !== 'wpftab_global_settings_page_wpftab_form_mapping' && $hook !== 'wpftab_global_settings_page_wpftab_form_mapping_elementor') return;
 
     wp_enqueue_style(
         'wpftab-admin-style',
