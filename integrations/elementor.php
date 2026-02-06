@@ -5,39 +5,6 @@ function wpftab_elementor_is_available() {
     return defined('ELEMENTOR_PRO_VERSION') || class_exists('ElementorPro\Modules\Forms\Module', false);
 }
 
-function wpftab_elementor_debug_write($lines) {
-    $plugin_dir = plugin_dir_path(__FILE__) . '../';
-    $file = $plugin_dir . 'debug-elementor.txt';
-    if (!is_array($lines)) $lines = [$lines];
-    $payload = [];
-    $payload[] = '--- ' . gmdate('Y-m-d H:i:s') . ' UTC ---';
-    foreach ($lines as $line) {
-        $payload[] = (string) $line;
-    }
-    $payload[] = '';
-    $written = @file_put_contents($file, implode(PHP_EOL, $payload), FILE_APPEND);
-    if ($written === false || !file_exists($file)) {
-        $uploads = function_exists('wp_upload_dir') ? wp_upload_dir() : null;
-        if (is_array($uploads) && !empty($uploads['basedir'])) {
-            $fallback_dir = trailingslashit($uploads['basedir']) . 'kingmaker-api-bridge';
-            if (!is_dir($fallback_dir)) {
-                @wp_mkdir_p($fallback_dir);
-            }
-            $fallback_file = trailingslashit($fallback_dir) . 'debug-elementor.txt';
-            @file_put_contents($fallback_file, implode(PHP_EOL, $payload), FILE_APPEND);
-            @error_log('[wpftab] debug-elementor fallback: ' . $fallback_file);
-        } else {
-            @error_log('[wpftab] debug-elementor write failed in plugin dir.');
-        }
-    }
-}
-
-function wpftab_elementor_debug_submit($data) {
-    wpftab_elementor_debug_write([
-        'elementor_submit',
-        is_string($data) ? $data : wp_json_encode($data),
-    ]);
-}
 
 function wpftab_elementor_decode_data($data) {
     if (is_array($data)) return $data;
@@ -46,7 +13,6 @@ function wpftab_elementor_decode_data($data) {
     $data = stripslashes($data);
     $decoded = json_decode($data, true);
     if (is_array($decoded)) return $decoded;
-    // Try unserialize (some hosts store _elementor_data serialized)
     if (function_exists('is_serialized') && is_serialized($raw)) {
         $unser = @unserialize($raw);
         if (is_array($unser)) return $unser;
@@ -55,10 +21,8 @@ function wpftab_elementor_decode_data($data) {
             if (is_array($decoded)) return $decoded;
         }
     }
-    // Try JSON decode on raw without stripslashes
     $decoded = json_decode($raw, true);
     if (is_array($decoded)) return $decoded;
-    wpftab_elementor_debug_write('json_decode_error: ' . json_last_error_msg());
     return null;
 }
 
@@ -122,7 +86,6 @@ function wpftab_collect_elementor_forms($elements, $post_id, $post_title, $conte
             $template_id = (int) $el['settings']['template_id'];
             if ($template_id > 0 && !isset($seen_templates[$template_id])) {
                 $seen_templates[$template_id] = true;
-                wpftab_elementor_debug_write('template_widget template_id=' . $template_id . ' parent_post=' . $post_id);
                 $tdata = get_post_meta($template_id, '_elementor_data', true);
                 $tdecoded = wpftab_elementor_decode_data($tdata);
                 if (is_array($tdecoded)) {
@@ -195,27 +158,25 @@ function wpftab_find_elementor_form_fields($elements, $form_name, &$fields, &$se
         if (!is_array($el)) continue;
         if (isset($el['widgetType'], $el['settings']) && $el['widgetType'] === 'form' && isset($el['settings']['form_name']) && $el['settings']['form_name'] === $form_name) {
             if ($widget_id !== '' && (!isset($el['id']) || (string) $el['id'] !== $widget_id)) {
-                // skip other instances with same form name
-                // continue searching
             } else {
-            $form_fields = isset($el['settings']['form_fields']) && is_array($el['settings']['form_fields']) ? $el['settings']['form_fields'] : [];
-            $index = 0;
-            foreach ($form_fields as $f) {
-                if (!is_array($f)) continue;
-                $id = isset($f['custom_id']) && (string) $f['custom_id'] !== '' ? (string) $f['custom_id']
-                    : (isset($f['id']) && (string) $f['id'] !== '' ? (string) $f['id']
-                    : (isset($f['field_id']) && (string) $f['field_id'] !== '' ? (string) $f['field_id'] : ''));
-                if ($id === '') {
-                    $id = (isset($f['field_type']) ? $f['field_type'] : 'field') . '_' . $index;
+                $form_fields = isset($el['settings']['form_fields']) && is_array($el['settings']['form_fields']) ? $el['settings']['form_fields'] : [];
+                $index = 0;
+                foreach ($form_fields as $f) {
+                    if (!is_array($f)) continue;
+                    $id = isset($f['custom_id']) && (string) $f['custom_id'] !== '' ? (string) $f['custom_id']
+                        : (isset($f['id']) && (string) $f['id'] !== '' ? (string) $f['id']
+                        : (isset($f['field_id']) && (string) $f['field_id'] !== '' ? (string) $f['field_id'] : ''));
+                    if ($id === '') {
+                        $id = (isset($f['field_type']) ? $f['field_type'] : 'field') . '_' . $index;
+                    }
+                    $index++;
+                    $fields[$id] = [
+                        'name'  => $id,
+                        'type'  => isset($f['field_type']) ? $f['field_type'] : 'text',
+                        'label' => isset($f['field_label']) ? $f['field_label'] : $id,
+                    ];
                 }
-                $index++;
-                $fields[$id] = [
-                    'name'  => $id,
-                    'type'  => isset($f['field_type']) ? $f['field_type'] : 'text',
-                    'label' => isset($f['field_label']) ? $f['field_label'] : $id,
-                ];
-            }
-            if ($widget_id !== '') return;
+                if ($widget_id !== '') return;
             }
         }
         if (isset($el['widgetType']) && $el['widgetType'] === 'template' && !empty($el['settings']['template_id'])) {
@@ -238,17 +199,13 @@ function wpftab_find_elementor_form_fields($elements, $form_name, &$fields, &$se
 
 add_action('elementor_pro/forms/new_record', function($record, $handler) {
     try {
-        wpftab_elementor_debug_write('hook elementor_pro/forms/new_record fired');
         if (!is_object($record) || !method_exists($record, 'get_form_settings')) {
-            wpftab_elementor_debug_write('exit: invalid record');
             return;
         }
         $form_name = $record->get_form_settings('form_name');
         if ($form_name === null || $form_name === '') {
-            wpftab_elementor_debug_write('exit: empty form_name');
             return;
         }
-        wpftab_elementor_debug_write('form_name: ' . $form_name);
         $raw_fields = $record->get('fields');
         if (!is_array($raw_fields)) $raw_fields = [];
         $posted_data = [];
@@ -257,34 +214,25 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
                 $posted_data[$id] = $field['value'];
             }
         }
-        wpftab_elementor_debug_write('posted_keys: ' . implode(', ', array_keys($posted_data)));
         if (method_exists($record, 'get') && is_array($record->get('meta'))) {
             $meta = $record->get('meta');
-            wpftab_elementor_debug_write('meta_keys: ' . implode(', ', array_keys($meta)));
             foreach (['post_id','page_id','form_id','page_url'] as $mk) {
                 if (isset($meta[$mk])) {
                     $val = $meta[$mk];
                     if (is_array($val) && isset($val[0])) $val = $val[0];
-                    wpftab_elementor_debug_write('meta_' . $mk . ': ' . (is_scalar($val) ? $val : gettype($val)));
                 }
             }
-        } else {
-            wpftab_elementor_debug_write('meta_keys: none');
-        }
-        if (isset($_POST['post_id']) || isset($_POST['form_id'])) {
-            wpftab_elementor_debug_write('post_post_id: ' . (isset($_POST['post_id']) ? (string) $_POST['post_id'] : ''));
-            wpftab_elementor_debug_write('post_form_id: ' . (isset($_POST['form_id']) ? (string) $_POST['form_id'] : ''));
         }
         $cookie_data = [];
         if (!empty($_COOKIE['referrer_source'])) {
             $decoded = json_decode(urldecode(stripslashes((string)$_COOKIE['referrer_source'])), true);
             if (is_array($decoded)) $cookie_data = $decoded;
         }
+        $cookie_data = wpftab_expand_utm_fields($cookie_data);
         $field_map = get_option('wpftab_elementor_field_map', []);
         $utm_map = get_option('wpftab_utm_map', []);
         if (!is_array($field_map)) $field_map = [];
         if (!is_array($utm_map)) $utm_map = [];
-        wpftab_elementor_debug_write('field_map_keys: ' . implode(', ', array_keys($field_map)));
         $post_id = 0;
         $form_widget_id = '';
         if (isset($_POST['post_id']) && (int) $_POST['post_id'] > 0) {
@@ -313,8 +261,6 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
                 if (is_string($url)) {
                     if (preg_match('/\?p=(\d+)/', $url, $m)) $post_id = (int) $m[1];
                     elseif (preg_match('#/post/(\d+)/#', $url, $m)) $post_id = (int) $m[1];
-                } else {
-                    wpftab_elementor_debug_write('page_url non-string, type=' . gettype($url));
                 }
             }
         }
@@ -333,22 +279,69 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
             $form_key_with_post .= '|' . $form_widget_id;
         }
         $field_map_used = $field_map[$form_key_with_post] ?? $field_map[$post_id . '|' . $form_name] ?? $field_map[$form_name] ?? [];
-        wpftab_elementor_debug_write('map_key_used: ' . (isset($field_map[$form_key_with_post]) ? $form_key_with_post : (isset($field_map[$post_id . '|' . $form_name]) ? ($post_id . '|' . $form_name) : (isset($field_map[$form_name]) ? $form_name : 'none'))));
+        $name_fields = get_option('wpftab_elementor_name_field', []);
+        if (!is_array($name_fields)) $name_fields = [];
+        $name_field_used = $name_fields[$form_key_with_post] ?? $name_fields[$post_id . '|' . $form_name] ?? $name_fields[$form_name] ?? '';
+        if (!is_string($name_field_used)) $name_field_used = '';
+        $gdpr_fields = get_option('wpftab_elementor_gdpr_fields', []);
+        if (!is_array($gdpr_fields)) $gdpr_fields = [];
+        $gdpr_fields_used = $gdpr_fields[$form_key_with_post] ?? $gdpr_fields[$post_id . '|' . $form_name] ?? $gdpr_fields[$form_name] ?? [];
+        if (!is_array($gdpr_fields_used)) $gdpr_fields_used = [];
+        $marketing_fields = get_option('wpftab_elementor_marketing_fields', []);
+        if (!is_array($marketing_fields)) $marketing_fields = [];
+        $marketing_fields_used = $marketing_fields[$form_key_with_post] ?? $marketing_fields[$post_id . '|' . $form_name] ?? $marketing_fields[$form_name] ?? [];
+        if (!is_array($marketing_fields_used)) $marketing_fields_used = [];
         $data = [];
+        $gdpr_yes = false;
+        $marketing_yes = false;
         foreach ($posted_data as $key => $value) {
             if ($key === '') continue;
+            if ($name_field_used !== '' && $key === $name_field_used) {
+                $full = is_array($value) ? (string) reset($value) : (string) $value;
+                if (trim($full) !== '') {
+                    $name_parts = wpftab_split_full_name($full);
+                    $data['firstName'] = sanitize_text_field($name_parts['firstName']);
+                    $data['lastName'] = sanitize_text_field($name_parts['lastName']);
+                }
+                continue;
+            }
+            if (in_array($key, $gdpr_fields_used, true)) {
+                if (wpftab_is_checked_value($value)) {
+                    $gdpr_yes = true;
+                }
+                continue;
+            }
+            if (in_array($key, $marketing_fields_used, true)) {
+                if (wpftab_is_checked_value($value)) {
+                    $marketing_yes = true;
+                }
+                continue;
+            }
             $mapped = isset($field_map_used[$key]) ? (string) $field_map_used[$key] : '';
-            if ($mapped === '') continue; // do not send unless explicitly mapped
+            if ($mapped === '') continue;
             $data[$mapped] = is_array($value) ? array_values($value) : (string) $value;
+        }
+        if (!empty($gdpr_fields_used)) {
+            $data['gdprConsent'] = $gdpr_yes ? 'YES' : 'NO';
+        }
+        if (!empty($marketing_fields_used)) {
+            $data['marketingConsent'] = $marketing_yes ? 'YES' : 'NO';
         }
         foreach ($utm_map as $cookie_key => $api_key_name) {
             if ($api_key_name === '') continue;
-            $raw = isset($cookie_data[$cookie_key]) ? (string) $cookie_data[$cookie_key] : '';
-            $data[$api_key_name] = sanitize_text_field($raw);
+            $raw = $cookie_data[$cookie_key] ?? '';
+            if ($raw === null) {
+                $data[$api_key_name] = null;
+                continue;
+            }
+            if (is_int($raw) || is_float($raw)) {
+                $data[$api_key_name] = $raw;
+                continue;
+            }
+            $data[$api_key_name] = sanitize_text_field((string) $raw);
         }
         $api_url = (string) get_option('wpftab_api_url', '');
         $api_key = (string) get_option('wpftab_api_key', '');
-        wpftab_elementor_debug_write('api_url_len: ' . strlen($api_url));
         $custom_fields = get_option('wpftab_elementor_custom_fields', []);
         $custom_fields_used = $custom_fields[$form_key_with_post] ?? $custom_fields[$post_id . '|' . $form_name] ?? $custom_fields[$form_name] ?? [];
         if (is_array($custom_fields_used)) {
@@ -380,25 +373,20 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
                         $answers = [];
                     }
                 }
+                if (strtolower($question) === 'category') {
+                    $answers = array_map(function($answer) {
+                        return strtolower((string) $answer);
+                    }, $answers);
+                }
                 $questionsAndAnswers[] = [ 'question' => $question, 'answers' => $answers ];
             }
         }
         if (!empty($questionsAndAnswers)) {
             $data['questionsAndAnswers'] = $questionsAndAnswers;
         }
-        wpftab_elementor_debug_write('payload_keys: ' . implode(', ', array_keys($data)));
         if ($api_url === '') {
-            wpftab_elementor_debug_write('exit: api_url empty');
             return;
         }
-        wpftab_elementor_debug_submit([
-            'form_key' => $form_key_with_post,
-            'form_name' => $form_name,
-            'post_id' => $post_id,
-            'api_url' => $api_url,
-            'api_key_set' => $api_key !== '',
-            'payload' => $data,
-        ]);
         wp_remote_post($api_url, [
             'headers' => [
                 'Content-Type' => 'application/json',
@@ -409,16 +397,6 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
             'blocking' => false,
             'sslverify' => true,
         ]);
-    } catch (Exception $e) {
-        wpftab_elementor_debug_write('exception: ' . $e->getMessage());
-    } catch (Error $e) {
-        wpftab_elementor_debug_write('error: ' . $e->getMessage());
-    }
-}, 10, 2);
-
-add_action('elementor/forms/new_record', function($record, $handler) {
-    try {
-        wpftab_elementor_debug_write('hook elementor/forms/new_record fired');
     } catch (Exception $e) {
     } catch (Error $e) {
     }

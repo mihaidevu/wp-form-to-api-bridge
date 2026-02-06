@@ -61,6 +61,7 @@ add_action('wpcf7_mail_sent', function($contact_form) {
                 $cookie_data = $decoded;
             }
         }
+        $cookie_data = wpftab_expand_utm_fields($cookie_data);
 
         $field_map = get_option('wpftab_field_map', []);
         if (!is_array($field_map)) {
@@ -71,6 +72,18 @@ add_action('wpcf7_mail_sent', function($contact_form) {
         if (!is_array($utm_map)) {
             $utm_map = [];
         }
+        $name_fields = get_option('wpftab_cf7_name_field', []);
+        if (!is_array($name_fields)) {
+            $name_fields = [];
+        }
+        $gdpr_fields = get_option('wpftab_cf7_gdpr_fields', []);
+        if (!is_array($gdpr_fields)) {
+            $gdpr_fields = [];
+        }
+        $marketing_fields = get_option('wpftab_cf7_marketing_fields', []);
+        if (!is_array($marketing_fields)) {
+            $marketing_fields = [];
+        }
 
         $form_id = (int) $contact_form->id();
         if ($form_id <= 0) {
@@ -79,21 +92,60 @@ add_action('wpcf7_mail_sent', function($contact_form) {
 
         $data = [];
 
+        $gdpr_list = $gdpr_fields[$form_id] ?? [];
+        if (!is_array($gdpr_list)) $gdpr_list = [];
+        $marketing_list = $marketing_fields[$form_id] ?? [];
+        if (!is_array($marketing_list)) $marketing_list = [];
+        $gdpr_yes = false;
+        $marketing_yes = false;
         foreach ($posted_data as $key => $value) {
             if (empty($key)) continue;
+            $name_field = $name_fields[$form_id] ?? '';
+            if ($name_field !== '' && $key === $name_field) {
+                $full = is_array($value) ? (string) reset($value) : (string) $value;
+                if (trim($full) !== '') {
+                    $name_parts = wpftab_split_full_name($full);
+                    $data['firstName'] = sanitize_text_field($name_parts['firstName']);
+                    $data['lastName'] = sanitize_text_field($name_parts['lastName']);
+                }
+                continue;
+            }
+            if (in_array($key, $gdpr_list, true)) {
+                if (wpftab_is_checked_value($value)) {
+                    $gdpr_yes = true;
+                }
+                continue;
+            }
+            if (in_array($key, $marketing_list, true)) {
+                if (wpftab_is_checked_value($value)) {
+                    $marketing_yes = true;
+                }
+                continue;
+            }
             $mapped = isset($field_map[$form_id][$key]) ? (string) $field_map[$form_id][$key] : '';
-            if ($mapped === '') continue; // do not send unless explicitly mapped
+            if ($mapped === '') continue;
             $data[$mapped] = is_array($value) ? array_values($value) : (string)$value;
+        }
+        if (!empty($gdpr_list)) {
+            $data['gdprConsent'] = $gdpr_yes ? 'YES' : 'NO';
+        }
+        if (!empty($marketing_list)) {
+            $data['marketingConsent'] = $marketing_yes ? 'YES' : 'NO';
         }
 
         foreach ($utm_map as $cookie_key => $api_key_name) {
             if (empty($api_key_name)) continue;
 
-            $raw_value = isset($cookie_data[$cookie_key]) 
-                ? (string)$cookie_data[$cookie_key] 
-                : '';
-
-            $data[$api_key_name] = sanitize_text_field($raw_value);
+            $raw_value = $cookie_data[$cookie_key] ?? '';
+            if ($raw_value === null) {
+                $data[$api_key_name] = null;
+                continue;
+            }
+            if (is_int($raw_value) || is_float($raw_value)) {
+                $data[$api_key_name] = $raw_value;
+                continue;
+            }
+            $data[$api_key_name] = sanitize_text_field((string) $raw_value);
         }
 
         $api_url = (string) get_option('wpftab_api_url', '');
@@ -134,27 +186,16 @@ add_action('wpcf7_mail_sent', function($contact_form) {
                         $answers = [];
                     }
                 }
+                if (strtolower($question) === 'category') {
+                    $answers = array_map(function($answer) {
+                        return strtolower((string) $answer);
+                    }, $answers);
+                }
                 $questionsAndAnswers[] = [ 'question' => $question, 'answers' => $answers ];
             }
         }
         if (!empty($questionsAndAnswers)) {
             $data['questionsAndAnswers'] = $questionsAndAnswers;
-        }
-
-        try {
-            $debug_file = plugin_dir_path(__FILE__) . '../debug-cf7.txt';
-            $json_payload = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-            
-            $debug_content = "\n--- FINAL JSON PAYLOAD (sent to API) ---\n";
-            $debug_content .= $json_payload."\n\n";
-            $debug_content .= "--- REQUEST SUMMARY ---\n";
-            $debug_content .= "Method: POST\n";
-            $debug_content .= "URL: {$api_url}\n";
-            $debug_content .= "Body Size: ".strlen($json_payload)." bytes\n";
-            $debug_content .= "Total Fields: ".count($data)."\n";
-            
-            @file_put_contents($debug_file, $debug_content, FILE_APPEND);
-        } catch (Exception $e) {
         }
 
         wp_remote_post($api_url, [
@@ -169,22 +210,8 @@ add_action('wpcf7_mail_sent', function($contact_form) {
         ]);
         
     } catch (Exception $e) {
-        try {
-            $debug_file = plugin_dir_path(__FILE__) . '../debug-cf7.txt';
-            $error_msg = "\n\n[ERROR] ".date('Y-m-d H:i:s').": ".$e->getMessage()."\n";
-            $error_msg .= "File: ".$e->getFile()." Line: ".$e->getLine()."\n";
-            @file_put_contents($debug_file, $error_msg, FILE_APPEND);
-        } catch (Exception $debug_error) {
-        }
         return;
     } catch (Error $e) {
-        try {
-            $debug_file = plugin_dir_path(__FILE__) . '../debug-cf7.txt';
-            $error_msg = "\n\n[FATAL ERROR] ".date('Y-m-d H:i:s').": ".$e->getMessage()."\n";
-            $error_msg .= "File: ".$e->getFile()." Line: ".$e->getLine()."\n";
-            @file_put_contents($debug_file, $error_msg, FILE_APPEND);
-        } catch (Exception $debug_error) {
-        }
         return;
     }
 });

@@ -3,7 +3,7 @@
  * Plugin Name: KingMaker API Bridge
  * Description: Sends CF7 form submissions to an external API with UTM and traffic cookie support.
  * Version: 1.1.0
- * Author: You
+ * Author: Whitebox Digital
  * License: GPL-2.0-or-later
  */
 
@@ -63,6 +63,76 @@ add_action('wp_enqueue_scripts', function() {
         false
     );
 });
+
+function wpftab_clean_numeric($value) {
+    if ($value === null) return null;
+    $value = (string) $value;
+    if ($value === '') return null;
+    $numeric = preg_replace('/\D+/', '', $value);
+    return $numeric !== '' ? (int) $numeric : null;
+}
+
+function wpftab_split_id_name($value) {
+    $value = (string) $value;
+    if ($value === '') {
+        return ['id' => '', 'name' => ''];
+    }
+    if (strpos($value, '|') !== false) {
+        $parts = explode('|', $value, 2);
+        return ['id' => trim($parts[0]), 'name' => trim($parts[1])];
+    }
+    return ['id' => trim($value), 'name' => ''];
+}
+
+function wpftab_expand_utm_fields($cookie_data) {
+    if (!is_array($cookie_data)) return [];
+    $expanded = $cookie_data;
+    if (array_key_exists('utm_campaign', $expanded)) {
+        $campaign = wpftab_split_id_name($expanded['utm_campaign']);
+        $expanded['utm_campaign_id'] = wpftab_clean_numeric($campaign['id']);
+        $expanded['utm_campaign_name'] = $campaign['name'];
+    }
+    if (array_key_exists('utm_adgroup', $expanded)) {
+        $adgroup = wpftab_split_id_name($expanded['utm_adgroup']);
+        $expanded['utm_adgroup_id'] = wpftab_clean_numeric($adgroup['id']);
+        $expanded['utm_adgroup_name'] = $adgroup['name'];
+    }
+    return $expanded;
+}
+
+function wpftab_split_full_name($value) {
+    $value = trim((string) $value);
+    if ($value === '') {
+        return ['firstName' => '', 'lastName' => ''];
+    }
+    $parts = preg_split('/\s+/', $value);
+    $first = $parts[0] ?? '';
+    $last = '';
+    if (count($parts) > 1) {
+        $last = trim(implode(' ', array_slice($parts, 1)));
+    }
+    return ['firstName' => $first, 'lastName' => $last];
+}
+
+function wpftab_is_checked_value($value) {
+    if (is_array($value)) {
+        $value = reset($value);
+    }
+    if (is_bool($value)) {
+        return $value;
+    }
+    if ($value === null) {
+        return false;
+    }
+    $value = strtolower(trim((string) $value));
+    if ($value === '') return false;
+    if (in_array($value, ['0', 'no', 'false', 'off'], true)) return false;
+    return true;
+}
+
+function wpftab_consent_value($value) {
+    return wpftab_is_checked_value($value) ? 'YES' : 'NO';
+}
 
 foreach (glob(plugin_dir_path(__FILE__) . 'integrations/*.php') as $file) {
     require_once $file;

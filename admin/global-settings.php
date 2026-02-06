@@ -4,16 +4,22 @@ if (!defined('ABSPATH')) exit;
 function wpftab_render_global_settings() {
     $api_url = get_option('wpftab_api_url', '');
     $api_key = get_option('wpftab_api_key', '');
-    $utm_map = get_option('wpftab_utm_map', [
+    $default_utm_map = [
         'traffic_source' => '',
         'utm_source' => '',
         'utm_medium' => '',
-        'utm_campaign' => '',
+        'utm_campaign_id' => '',
+        'utm_campaign_name' => '',
         'utm_term' => '',
-        'utm_adgroup' => '',
+        'utm_adgroup_id' => '',
+        'utm_adgroup_name' => '',
         'utm_content' => '',
         'clid' => ''
-    ]);
+    ];
+    $utm_map = get_option('wpftab_utm_map', []);
+    if (!is_array($utm_map)) $utm_map = [];
+    $utm_map = array_merge($default_utm_map, $utm_map);
+    unset($utm_map['utm_campaign'], $utm_map['utm_adgroup']);
     
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_admin_referer('wpftab_save_global', 'wpftab_nonce')) {
         if (!current_user_can('manage_options')) {

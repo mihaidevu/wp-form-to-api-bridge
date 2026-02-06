@@ -13,6 +13,12 @@ $wpftab_options = [
     'wpftab_elementor_field_map',
     'wpftab_elementor_custom_fields',
     'wpftab_elementor_questions_answers',
+    'wpftab_elementor_name_field',
+    'wpftab_elementor_gdpr_fields',
+    'wpftab_elementor_marketing_fields',
+    'wpftab_cf7_name_field',
+    'wpftab_cf7_gdpr_fields',
+    'wpftab_cf7_marketing_fields',
 ];
 
 foreach ($wpftab_options as $option_name) {
@@ -20,7 +26,3 @@ foreach ($wpftab_options as $option_name) {
     delete_site_option($option_name);
 }
 
-$debug_file = plugin_dir_path(__FILE__) . 'debug-cf7.txt';
-if (file_exists($debug_file)) {
-    @unlink($debug_file);
-}

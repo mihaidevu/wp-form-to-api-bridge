@@ -8,6 +8,12 @@ function wpftab_render_form_mapping() {
     $field_map = get_option('wpftab_field_map', []);
     $custom_fields = get_option('wpftab_custom_fields', []);
     $questions_answers = get_option('wpftab_questions_answers', []);
+    $name_fields = get_option('wpftab_cf7_name_field', []);
+    if (!is_array($name_fields)) $name_fields = [];
+    $gdpr_fields = get_option('wpftab_cf7_gdpr_fields', []);
+    if (!is_array($gdpr_fields)) $gdpr_fields = [];
+    $marketing_fields = get_option('wpftab_cf7_marketing_fields', []);
+    if (!is_array($marketing_fields)) $marketing_fields = [];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_admin_referer('wpftab_save_form_map', 'wpftab_nonce')) {
         if (!current_user_can('manage_options')) {
@@ -65,6 +71,39 @@ function wpftab_render_form_mapping() {
         if ($form_id > 0 && isset($_POST['wpftab_field_map']) && is_array($_POST['wpftab_field_map'])) {
             $form_fields = wpftab_get_cf7_form_fields($form_id);
             $current_field_names = array_keys($form_fields);
+            $name_fields[$form_id] = '';
+            if (isset($_POST['wpftab_cf7_name_field'])) {
+                $clean_name = sanitize_text_field($_POST['wpftab_cf7_name_field']);
+                if ($clean_name !== '' && $clean_name !== '__none__' && in_array($clean_name, $current_field_names, true)) {
+                    $name_fields[$form_id] = $clean_name;
+                }
+            }
+            if ($name_fields[$form_id] === '') unset($name_fields[$form_id]);
+            update_option('wpftab_cf7_name_field', $name_fields);
+            $gdpr_fields[$form_id] = [];
+            if (isset($_POST['wpftab_cf7_gdpr_fields']) && is_array($_POST['wpftab_cf7_gdpr_fields'])) {
+                foreach ($_POST['wpftab_cf7_gdpr_fields'] as $key => $enabled) {
+                    if ($enabled !== '1') continue;
+                    $clean = sanitize_text_field($key);
+                    if (in_array($clean, $current_field_names, true)) {
+                        $gdpr_fields[$form_id][] = $clean;
+                    }
+                }
+            }
+            if (empty($gdpr_fields[$form_id])) unset($gdpr_fields[$form_id]);
+            update_option('wpftab_cf7_gdpr_fields', $gdpr_fields);
+            $marketing_fields[$form_id] = [];
+            if (isset($_POST['wpftab_cf7_marketing_fields']) && is_array($_POST['wpftab_cf7_marketing_fields'])) {
+                foreach ($_POST['wpftab_cf7_marketing_fields'] as $key => $enabled) {
+                    if ($enabled !== '1') continue;
+                    $clean = sanitize_text_field($key);
+                    if (in_array($clean, $current_field_names, true)) {
+                        $marketing_fields[$form_id][] = $clean;
+                    }
+                }
+            }
+            if (empty($marketing_fields[$form_id])) unset($marketing_fields[$form_id]);
+            update_option('wpftab_cf7_marketing_fields', $marketing_fields);
             
             if (!isset($field_map[$form_id])) {
                 $field_map[$form_id] = [];
@@ -80,7 +119,6 @@ function wpftab_render_form_mapping() {
                 } elseif (!empty($clean_value)) {
                     $field_map[$form_id][$clean_key] = $clean_value;
                 } else {
-                    // Enabled but empty => keep original name
                     $field_map[$form_id][$clean_key] = $clean_key;
                 }
             }
@@ -125,13 +163,43 @@ function wpftab_render_form_mapping() {
     if (count($questions_answers) !== count(get_option('wpftab_questions_answers', []))) {
         update_option('wpftab_questions_answers', $questions_answers);
     }
+    foreach ($name_fields as $saved_form_id => $vals) {
+        if (!in_array($saved_form_id, $existing_form_ids)) {
+            unset($name_fields[$saved_form_id]);
+        }
+    }
+    if (count($name_fields) !== count(get_option('wpftab_cf7_name_field', []))) {
+        update_option('wpftab_cf7_name_field', $name_fields);
+    }
+    foreach ($gdpr_fields as $saved_form_id => $vals) {
+        if (!in_array($saved_form_id, $existing_form_ids)) {
+            unset($gdpr_fields[$saved_form_id]);
+        }
+    }
+    if (count($gdpr_fields) !== count(get_option('wpftab_cf7_gdpr_fields', []))) {
+        update_option('wpftab_cf7_gdpr_fields', $gdpr_fields);
+    }
+    foreach ($marketing_fields as $saved_form_id => $vals) {
+        if (!in_array($saved_form_id, $existing_form_ids)) {
+            unset($marketing_fields[$saved_form_id]);
+        }
+    }
+    if (count($marketing_fields) !== count(get_option('wpftab_cf7_marketing_fields', []))) {
+        update_option('wpftab_cf7_marketing_fields', $marketing_fields);
+    }
 
     $selected_form_id = isset($_GET['form_id']) ? intval($_GET['form_id']) : (isset($_POST['form_id']) ? intval($_POST['form_id']) : 0);
     $form_fields = [];
     $form_custom_fields = [];
     $form_questions_answers = [];
+    $form_name_field = '';
+    $form_gdpr_fields = [];
+    $form_marketing_fields = [];
     if ($selected_form_id > 0) {
         $form_fields = wpftab_get_cf7_form_fields($selected_form_id);
+        $form_name_field = isset($name_fields[$selected_form_id]) ? (string) $name_fields[$selected_form_id] : '';
+        $form_gdpr_fields = isset($gdpr_fields[$selected_form_id]) && is_array($gdpr_fields[$selected_form_id]) ? $gdpr_fields[$selected_form_id] : [];
+        $form_marketing_fields = isset($marketing_fields[$selected_form_id]) && is_array($marketing_fields[$selected_form_id]) ? $marketing_fields[$selected_form_id] : [];
         
         if (isset($custom_fields[$selected_form_id]) && is_array($custom_fields[$selected_form_id])) {
             $form_custom_fields = array_filter($custom_fields[$selected_form_id], function($field) {
@@ -195,6 +263,12 @@ function wpftab_render_form_mapping() {
                 <h3>Field Mapping</h3>
                 <p>Bifează câmpurile pe care vrei să le trimiți la API. Dacă bifezi și lași gol, se trimite cu numele original. Dacă completezi, se trimite cu numele din API Field Name.</p>
                 <p><em>Note: Mappings for fields that no longer exist in the form will be automatically removed when you save.</em></p>
+                <p>
+                    <label>
+                        <input type="radio" name="wpftab_cf7_name_field" value="__none__" <?php checked($form_name_field === '', true); ?>>
+                        Fără split nume
+                    </label>
+                </p>
                 <div id="form-fields-container">
                     <table class="wp-list-table widefat fixed striped">
                         <thead>
@@ -203,12 +277,18 @@ function wpftab_render_form_mapping() {
                                 <th>CF7 Field Name</th>
                                 <th>Field Type</th>
                                 <th>API Field Name</th>
+                                <th style="width:12%;">Full name?</th>
+                                <th style="width:10%;">GDPR?</th>
+                                <th style="width:12%;">Marketing?</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($form_fields as $field_name => $field_info): ?>
                                 <?php $mapped_value = $field_map[$selected_form_id][$field_name] ?? ''; ?>
                                 <?php $is_mapped = $mapped_value !== ''; ?>
+                                <?php $is_name = $form_name_field === $field_name; ?>
+                                <?php $is_gdpr = in_array($field_name, $form_gdpr_fields, true); ?>
+                                <?php $is_marketing = in_array($field_name, $form_marketing_fields, true); ?>
                                 <tr>
                                     <td>
                                         <input type="checkbox" name="wpftab_field_map_enabled[<?php echo esc_attr($field_name); ?>]" value="1" <?php checked($is_mapped, true); ?>>
@@ -221,6 +301,15 @@ function wpftab_render_form_mapping() {
                                                value="<?php echo esc_attr($mapped_value); ?>"
                                                placeholder="<?php echo esc_attr($field_name); ?>"
                                                class="regular-text">
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <input type="radio" name="wpftab_cf7_name_field" value="<?php echo esc_attr($field_name); ?>" <?php checked($is_name, true); ?>>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <input type="checkbox" name="wpftab_cf7_gdpr_fields[<?php echo esc_attr($field_name); ?>]" value="1" <?php checked($is_gdpr, true); ?>>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <input type="checkbox" name="wpftab_cf7_marketing_fields[<?php echo esc_attr($field_name); ?>]" value="1" <?php checked($is_marketing, true); ?>>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -359,6 +448,29 @@ function wpftab_render_form_mapping() {
                 if (input.value.trim() !== '') checkbox.checked = true;
             });
         });
+        function applyNameSplitState() {
+            var selected = document.querySelector('input[name="wpftab_cf7_name_field"]:checked');
+            if (!selected) return;
+            var selectedValue = selected.value;
+            document.querySelectorAll('input[name^="wpftab_field_map["]').forEach(function(input) {
+                var row = input.closest('tr');
+                if (!row) return;
+                var fieldName = input.getAttribute('name').replace('wpftab_field_map[', '').replace(']', '');
+                var checkbox = row.querySelector('input[type="checkbox"][name^="wpftab_field_map_enabled["]');
+                if (selectedValue !== '__none__' && fieldName === selectedValue) {
+                    input.disabled = true;
+                    if (checkbox) checkbox.checked = false;
+                    if (checkbox) checkbox.disabled = true;
+                } else {
+                    input.disabled = false;
+                    if (checkbox) checkbox.disabled = false;
+                }
+            });
+        }
+        document.querySelectorAll('input[name="wpftab_cf7_name_field"]').forEach(function(radio) {
+            radio.addEventListener('change', applyNameSplitState);
+        });
+        applyNameSplitState();
         
         document.getElementById('add-custom-field')?.addEventListener('click', function() {
             const tbody = document.getElementById('custom-fields-tbody');
