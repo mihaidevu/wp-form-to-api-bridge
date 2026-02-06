@@ -73,13 +73,15 @@ function wpftab_render_form_mapping() {
             foreach ($_POST['wpftab_field_map'] as $key => $value) {
                 $clean_key = sanitize_text_field($key);
                 $clean_value = sanitize_text_field($value);
+                $enabled = isset($_POST['wpftab_field_map_enabled'][$clean_key]) && $_POST['wpftab_field_map_enabled'][$clean_key] === '1';
                 
-                if ($clean_value === '__DELETE__') {
+                if (!$enabled || $clean_value === '__DELETE__') {
                     unset($field_map[$form_id][$clean_key]);
                 } elseif (!empty($clean_value)) {
                     $field_map[$form_id][$clean_key] = $clean_value;
                 } else {
-                    unset($field_map[$form_id][$clean_key]);
+                    // Enabled but empty => keep original name
+                    $field_map[$form_id][$clean_key] = $clean_key;
                 }
             }
             
@@ -191,12 +193,13 @@ function wpftab_render_form_mapping() {
 
             <?php if ($selected_form_id > 0 && !empty($form_fields)): ?>
                 <h3>Field Mapping</h3>
-                <p>Map each CF7 field to your API field name. Leave empty to use the original field name.</p>
+                <p>Bifează câmpurile pe care vrei să le trimiți la API. Dacă bifezi și lași gol, se trimite cu numele original. Dacă completezi, se trimite cu numele din API Field Name.</p>
                 <p><em>Note: Mappings for fields that no longer exist in the form will be automatically removed when you save.</em></p>
                 <div id="form-fields-container">
                     <table class="wp-list-table widefat fixed striped">
                         <thead>
                             <tr>
+                                <th style="width:6%;">Map?</th>
                                 <th>CF7 Field Name</th>
                                 <th>Field Type</th>
                                 <th>API Field Name</th>
@@ -204,13 +207,18 @@ function wpftab_render_form_mapping() {
                         </thead>
                         <tbody>
                             <?php foreach ($form_fields as $field_name => $field_info): ?>
+                                <?php $mapped_value = $field_map[$selected_form_id][$field_name] ?? ''; ?>
+                                <?php $is_mapped = $mapped_value !== ''; ?>
                                 <tr>
+                                    <td>
+                                        <input type="checkbox" name="wpftab_field_map_enabled[<?php echo esc_attr($field_name); ?>]" value="1" <?php checked($is_mapped, true); ?>>
+                                    </td>
                                     <td><strong><?php echo esc_html($field_name); ?></strong></td>
                                     <td><?php echo esc_html($field_info['type']); ?></td>
                                     <td>
                                         <input type="text" 
                                                name="wpftab_field_map[<?php echo esc_attr($field_name); ?>]" 
-                                               value="<?php echo esc_attr($field_map[$selected_form_id][$field_name] ?? ''); ?>"
+                                               value="<?php echo esc_attr($mapped_value); ?>"
                                                placeholder="<?php echo esc_attr($field_name); ?>"
                                                class="regular-text">
                                     </td>
@@ -344,6 +352,13 @@ function wpftab_render_form_mapping() {
     <script>
     (function() {
         let fieldIndex = <?php echo isset($form_custom_fields) && !empty($form_custom_fields) ? count($form_custom_fields) : 0; ?>;
+        document.querySelectorAll('input[name^="wpftab_field_map["]').forEach(function(input) {
+            input.addEventListener('input', function() {
+                var checkbox = input.closest('tr')?.querySelector('input[type="checkbox"][name^="wpftab_field_map_enabled["]');
+                if (!checkbox) return;
+                if (input.value.trim() !== '') checkbox.checked = true;
+            });
+        });
         
         document.getElementById('add-custom-field')?.addEventListener('click', function() {
             const tbody = document.getElementById('custom-fields-tbody');

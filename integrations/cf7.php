@@ -81,11 +81,8 @@ add_action('wpcf7_mail_sent', function($contact_form) {
 
         foreach ($posted_data as $key => $value) {
             if (empty($key)) continue;
-            
-            $mapped = isset($field_map[$form_id][$key]) && !empty($field_map[$form_id][$key]) 
-                ? $field_map[$form_id][$key] 
-                : $key;
-            
+            $mapped = isset($field_map[$form_id][$key]) ? (string) $field_map[$form_id][$key] : '';
+            if ($mapped === '') continue; // do not send unless explicitly mapped
             $data[$mapped] = is_array($value) ? array_values($value) : (string)$value;
         }
 

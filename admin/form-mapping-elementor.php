@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 
 function wpftab_render_form_mapping_elementor() {
-    if (!function_exists('wpftab_get_elementor_forms')) {
+    if (!function_exists('wpftab_elementor_is_available') || !wpftab_elementor_is_available()) {
         echo '<div class="wrap"><div class="wpftab-admin-container"><h2>Elementor Form Mapping</h2>';
         echo '<p>Elementor Pro (Form widget) nu este activ. Activează Elementor Pro pentru a folosi maparea formularelor Elementor.</p></div></div>';
         return;
@@ -59,12 +59,14 @@ function wpftab_render_form_mapping_elementor() {
             foreach ($_POST['wpftab_elementor_field_map'] as $key => $value) {
                 $clean_key = sanitize_text_field($key);
                 $clean_value = sanitize_text_field($value);
-                if ($clean_value === '__DELETE__') {
+                $enabled = isset($_POST['wpftab_elementor_field_map_enabled'][$clean_key]) && $_POST['wpftab_elementor_field_map_enabled'][$clean_key] === '1';
+                if (!$enabled || $clean_value === '__DELETE__') {
                     unset($field_map[$form_key][$clean_key]);
                 } elseif ($clean_value !== '') {
                     $field_map[$form_key][$clean_key] = $clean_value;
                 } else {
-                    unset($field_map[$form_key][$clean_key]);
+                    // Enabled but empty => keep original name
+                    $field_map[$form_key][$clean_key] = $clean_key;
                 }
             }
             foreach ($field_map[$form_key] as $mapped_field => $mapped_value) {
@@ -139,14 +141,6 @@ function wpftab_render_form_mapping_elementor() {
         <?php if (empty($forms)): ?>
             <p>Nu s-au găsit formulare Elementor. Adaugă un widget Form într-o pagină construită cu Elementor.</p>
         <?php endif; ?>
-        <div class="wpftab-field-group" style="margin-bottom: 1em;">
-            <label for="wpftab_manual_form_key">Introdu form key manual</label>
-            <p class="description">Doar <strong>form name</strong> (ex: <code>Contact Form</code>) — un singur mapping pentru toate formularele cu același nume. Opțional: <code>post_id|form_name</code> (ex: <code>47|Contact Form</code>) pentru o pagină anume. Form name = atributul <code>name</code> al tag-ului <code>&lt;form name="Contact Form"&gt;</code>.</p>
-            <p style="margin: 8px 0 4px;">
-                <input type="text" id="wpftab_manual_form_key" class="regular-text" placeholder="Contact Form" value="<?php echo $selected_form_key !== '' && !in_array($selected_form_key, array_column($forms, 'key')) ? esc_attr($selected_form_key) : ''; ?>" style="max-width: 320px;">
-                <button type="button" class="button" id="wpftab_load_manual_form_key">Încarcă form</button>
-            </p>
-        </div>
         <?php if (!empty($forms)): ?>
             <div class="wpftab-field-group">
                 <label for="form_key">Select Elementor Form</label>
@@ -165,16 +159,21 @@ function wpftab_render_form_mapping_elementor() {
             <p><strong>Form key:</strong> <code><?php echo esc_html($selected_form_key); ?></code></p>
             <?php if (!empty($form_fields)): ?>
                 <h3>Field Mapping</h3>
-                <p>Map each Elementor field to your API field name. Leave empty to use the original field name.</p>
+                <p>Bifează câmpurile pe care vrei să le trimiți la API. Dacă bifezi și lași gol, se trimite cu numele original. Dacă completezi, se trimite cu numele din API Field Name.</p>
                 <table class="wp-list-table widefat fixed striped">
-                    <thead><tr><th>Elementor Field</th><th>Field Type</th><th>API Field Name</th></tr></thead>
+                    <thead><tr><th style="width:6%;">Map?</th><th>Elementor Field</th><th>Field Type</th><th>API Field Name</th></tr></thead>
                     <tbody>
                         <?php foreach ($form_fields as $field_name => $field_info): ?>
+                            <?php $mapped_value = $field_map[$selected_form_key][$field_name] ?? ''; ?>
+                            <?php $is_mapped = $mapped_value !== ''; ?>
                             <tr>
+                                <td>
+                                    <input type="checkbox" name="wpftab_elementor_field_map_enabled[<?php echo esc_attr($field_name); ?>]" value="1" <?php checked($is_mapped, true); ?>>
+                                </td>
                                 <td><strong><?php echo esc_html($field_name); ?></strong></td>
                                 <td><?php echo esc_html($field_info['type'] ?? ''); ?></td>
                                 <td>
-                                    <input type="text" name="wpftab_elementor_field_map[<?php echo esc_attr($field_name); ?>]" value="<?php echo esc_attr($field_map[$selected_form_key][$field_name] ?? ''); ?>" placeholder="<?php echo esc_attr($field_name); ?>" class="regular-text">
+                                    <input type="text" name="wpftab_elementor_field_map[<?php echo esc_attr($field_name); ?>]" value="<?php echo esc_attr($mapped_value); ?>" placeholder="<?php echo esc_attr($field_name); ?>" class="regular-text">
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -293,16 +292,6 @@ function wpftab_render_form_mapping_elementor() {
     </div>
     <script>
     (function() {
-        var manualKeyInput = document.getElementById('wpftab_manual_form_key');
-        var loadBtn = document.getElementById('wpftab_load_manual_form_key');
-        if (loadBtn && manualKeyInput) {
-            loadBtn.addEventListener('click', function() {
-                var key = (manualKeyInput.value || '').trim();
-                if (key) {
-                    window.location.href = '?page=wpftab_form_mapping_elementor&form_key=' + encodeURIComponent(key);
-                }
-            });
-        }
         var fieldIndex = <?php echo count($form_custom_fields); ?>;
         document.getElementById('elementor-add-custom-field')?.addEventListener('click', function() {
             var tbody = document.getElementById('elementor-custom-fields-tbody');
@@ -313,6 +302,13 @@ function wpftab_render_form_mapping_elementor() {
         });
         var formFieldNames = <?php echo json_encode(array_keys($form_fields)); ?>;
         var qaRowIndex = <?php echo count($form_questions_answers); ?>;
+        document.querySelectorAll('input[name^="wpftab_elementor_field_map["]').forEach(function(input) {
+            input.addEventListener('input', function() {
+                var checkbox = input.closest('tr')?.querySelector('input[type="checkbox"][name^="wpftab_elementor_field_map_enabled["]');
+                if (!checkbox) return;
+                if (input.value.trim() !== '') checkbox.checked = true;
+            });
+        });
         function applyQaState(row) {
             var src = row.querySelector('.wpftab-qa-source-el');
             var valueInput = row.querySelector('.wpftab-qa-value-cell input');
