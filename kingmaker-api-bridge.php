@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: KingMaker API Bridge
- * Description: Sends CF7 form submissions to an external API with UTM and traffic cookie support.
+ * Description: Sends form submissions to KingMaker API with UTM and traffic cookie support.
  * Version: 1.1.0
  * Author: Whitebox Digital
  * License: GPL-2.0-or-later
