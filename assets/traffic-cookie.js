@@ -24,18 +24,23 @@
             'tiktok.com': () => 'TikTok',
             'youtube.com': () => 'YouTube'
         };
+    
         if (!referrer) return 'Direct';
+    
         try {
             const url = new URL(referrer);
             const hostname = url.hostname || '';
+    
             for (const domain in trafficSources) {
-                if ((hostname || '').includes(domain)) return trafficSources[domain](url);
+                if (hostname.includes(domain)) return trafficSources[domain](url);
             }
-            return 'Other';
+    
+            return hostname;
+    
         } catch (_) {
             return 'Invalid Referrer';
         }
-    }
+    }    
 
     function getCookie(name) {
         return document.cookie
