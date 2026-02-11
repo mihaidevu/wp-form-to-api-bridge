@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: KingMaker API Bridge
- * Description: Sends form submissions to KingMaker API with UTM and traffic cookie support.
+ * Plugin Name: Kingmaker API Bridge
+ * Description: Sends form submissions to Kingmaker API with UTM and traffic cookie support.
  * Version: 1.1.0
  * Author: Whitebox Digital
  * License: GPL-2.0-or-later
@@ -15,8 +15,8 @@ require_once plugin_dir_path(__FILE__) . 'admin/form-mapping-elementor.php';
 
 add_action('admin_menu', function() {
     add_menu_page(
-        'KingMaker API Bridge',        
-        'KingMaker API Bridge',        
+        'Kingmaker API Bridge',        
+        'Kingmaker API Bridge',        
         'manage_options',               
         'wpftab_global_settings',       
         'wpftab_render_global_settings',

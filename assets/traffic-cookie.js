@@ -37,8 +37,15 @@
         }
     }
 
+    function getCookie(name) {
+        return document.cookie
+            .split('; ')
+            .find(row => row.startsWith(name + '='))
+            ?.split('=')[1];
+    }
+
     function setReferrerSourceCookie() {
-        if ((document.cookie || '').includes('referrer_source=')) return;
+        if (getCookie('referrer_source')) return;
 
         const utmParameters = getUTMParameters();
         const trafficSource = getTrafficSource(document.referrer || '');
