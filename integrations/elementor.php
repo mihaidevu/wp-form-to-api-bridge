@@ -224,8 +224,8 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
             }
         }
         $cookie_data = [];
-        if (!empty($_COOKIE['referrer_source'])) {
-            $decoded = json_decode(urldecode(stripslashes((string)$_COOKIE['referrer_source'])), true);
+        if (!empty($_COOKIE['kmb_session_data'])) {
+            $decoded = json_decode(urldecode(stripslashes((string)$_COOKIE['kmb_session_data'])), true);
             if (is_array($decoded)) $cookie_data = $decoded;
         }
         $cookie_data = wpftab_expand_utm_fields($cookie_data);

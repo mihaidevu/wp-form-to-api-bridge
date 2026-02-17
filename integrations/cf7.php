@@ -55,8 +55,8 @@ add_action('wpcf7_mail_sent', function($contact_form) {
         }
 
         $cookie_data = [];
-        if (!empty($_COOKIE['referrer_source'])) {
-            $decoded = json_decode(urldecode(stripslashes((string)$_COOKIE['referrer_source'])), true);
+        if (!empty($_COOKIE['kmb_session_data'])) {
+            $decoded = json_decode(urldecode(stripslashes((string)$_COOKIE['kmb_session_data'])), true);
             if (is_array($decoded)) {
                 $cookie_data = $decoded;
             }

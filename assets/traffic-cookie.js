@@ -70,7 +70,7 @@
             return row ? row.split('=')[1] : null;
         };
 
-        if (getCookie('referrer_source')) return;
+        if (getCookie('kmb_session_data')) return;
 
         const utms = getUTMParameters();
         const source = getTrafficSource(utms, document.referrer);
@@ -91,7 +91,7 @@
             const serializedData = encodeURIComponent(JSON.stringify(data));
             const expires = new Date(Date.now() + 30*24*60*60*1000).toUTCString();
             const secureFlag = location.protocol === 'https:' ? '; Secure' : '';
-            document.cookie = `referrer_source=${serializedData}; path=/; expires=${expires}; SameSite=Lax${secureFlag}`;
+            document.cookie = `kmb_session_data=${serializedData}; path=/; expires=${expires}; SameSite=Lax${secureFlag}`;
         } catch (e) {}
     };
 

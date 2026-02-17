@@ -55,13 +55,13 @@ add_action('admin_enqueue_scripts', function($hook) {
 });
 
 add_action('wp_enqueue_scripts', function() {
-    wp_enqueue_script(
-        'wpftab-traffic-cookie',
-        plugin_dir_url(__FILE__) . 'assets/traffic-cookie.js',
-        [],
-        '1.0',
-        false
-    );
+    $js_file_path = plugin_dir_path(__FILE__) . 'assets/traffic-cookie.js';
+    if (file_exists($js_file_path)) {
+        $inline_js = file_get_contents($js_file_path);
+        wp_register_script('kingmaker-api-bridge-inline-handle', false);
+        wp_enqueue_script('kingmaker-api-bridge-inline-handle');
+        wp_add_inline_script('kingmaker-api-bridge-inline-handle', $inline_js);
+    }
 });
 
 function wpftab_clean_numeric($value) {
