@@ -1,0 +1,56 @@
+v2.0
+++++
+- Determină sursa traficului în primul rând pe baza click ID-ului (gclid, fbclid, msclkid), nu pe UTM-uri, pentru că multe campanii Ads folosesc auto-tagging și UTM-urile pot lipsi, dar clid-ul este întotdeauna prezent.
+- Scoate www. din hostname și folosește doar domeniul curat (emag.ro în loc de www.emag.ro).
+// Astfel, indiferent de cum ajunge vizitatorul (cu sau fără www, subdomenii etc.), raportarea sursei va fi unitară.
+++++
+
+— Corecție Logică (Refactorizare)
+Logica: Mutarea verificării UTM-urilor pe window.location.search.
+Îmbunătățiri:
+Separarea detecției de Ads (clid) de cea Organică (referrer).
+Introducerea priorității: Ads > UTM > Organic > Direct.
+
+— Optimizare Performanță & Siguranță
+Logica: Eliminarea DOMContentLoaded și trecerea la execuție instantanee.
+Îmbunătățiri:
+Normalizarea domeniilor (eliminare www.).
+Verificare strictă a domeniilor cu .endsWith() (prevenire spoofing).
+Prefixare internă clid pentru o mai bună identificare a platformei (GAds/FBAds).
+
++++ De ce sa urmaresc dupa clid?
+Da, dacă ai un CLID (gclid, fbclid sau msclkid), ești 100% sigur că acel user a dat click pe o reclamă plătită. Este „amprenta” digitală lăsată de platforma de Ads.
+
+Nivelul 1 (Certitudine): Verifică dacă există gclid sau fbclid.
+Dacă da, pune sursa ca "Google Ads" sau "Facebook Ads". (Ignoră orice altceva, clid-ul nu minte).
+
+Nivelul 2 (Intenție): Dacă nu există clid, verifică utm_medium=cpc. 
+Dacă marketerul a pus asta, înseamnă că e trafic plătit (poate de pe o platformă care nu are clid, cum e LinkedIn Ads).
+Nivelul 3 (Context): Dacă nu există niciuna de mai sus, se uită la document.referrer pentru Organic.
+
+
+v2.0 PHP vs JavaScript (Timing)
+
+În varianta veche: Trebuia să aștepți ca HTML-ul să fie gata (DOMContentLoaded), să cauți câmpurile <input type="hidden"> și să le injectezi valorile. Dacă userul apăsa "Submit" foarte repede (înainte ca JS-ul să apuce să scrie în input-uri), trimiteai date goale.
+În varianta nouă (PHP): PHP-ul rulează pe server, înainte ca pagina să plece spre utilizator. PHP citește cookie-ul direct din request-ul HTTP. Nu mai depinzi de existența câmpurilor hidden sau de viteza cu care se încarcă JavaScript-ul.
+
+2. De ce execuția instantanee a JS-ului e vitală acum?
+Pentru ca PHP-ul să poată citi cookie-ul la a doua pagină accesată (sau la submit), JS-ul trebuie să-l scrie cât mai repede posibil la prima pagină.
+Scenariu: Userul dă click pe o reclamă -> ajunge pe site-ul tău.
+Dacă folosești DOMContentLoaded: Browserul stă să descarce imagini, scripturi, CSS. Abia la final JS-ul scrie cookie-ul. Dacă userul dă click pe "Contact" imediat, există riscul ca scriptul de scriere a cookie-ului să nu se fi executat încă.
+Dacă folosești execuția instantanee: Cookie-ul este scris în prima milisecundă. Orice click ulterior (sau refresh) va trimite către PHP cookie-ul gata populat.
+
+3. Eliminarea riscului de "Empty Fields"
+Când populai câmpuri hidden prin JS, erai dependent de DOM. Dacă schimbai ID-ul unui câmp în formular sau foloseai un plugin de formulare care încărca elementele asincron (ex: un popup), JS-ul tău nu găsea câmpurile și datele se pierdeau.
+Prin metoda Cookie + PHP, fluxul este mult mai robust:
+JS extrage sursa din URL și o pune în Cookie (instant).
+PHP preia tot ce are nevoie din acel Cookie la orice procesare de formular sau apel API.
+
+
+wp_enqueue_script(
+    'traffic-cookie-js', 
+    plugins_url('/js/traffic-cookie.js', __FILE__), 
+    array(), 
+    '1.2.1' // WordPress va adăuga automat ?ver=1.2.1
+);
+

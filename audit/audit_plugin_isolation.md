@@ -8,12 +8,12 @@
 **Nu.** Nu modifică nimic din WordPress sau din alte plugin-uri. Dacă apare o eroare în plugin, ea este prinsă și nu oprește site-ul. Fără CF7 activ, integrarea CF7 nu rulează. Fără Elementor Pro activ, integrarea Elementor nu rulează.
 
 **2. Este izolat față de alte plugin-uri?**  
-**Da.** Folosește doar setări și pagini proprii (prefix `wpftab_`). Integrarea externă este doar cu Contact Form 7 și Elementor Pro (Form widget), folosite strict pentru trimitere către API după submit.
+**Da.** Folosește doar setări și pagini proprii (prefix `wpftab_`). Integrarea externă este doar cu Contact Form 7 și Elementor Pro (Form widget), folosite strict pentru trimitere către API după submit. Opțiunile de debug (`wpftab_debug_log_only`, `wpftab_last_debug_payload`) sunt tot cu prefix și șterse la dezinstalare.
 
 **3. Afectează Contact Form 7 sau Elementor Forms?**  
 **Nu.** Plugin-ul intră în acțiune **după** ce formularul a fost trimis. Nu poate opri trimiterea, nu schimbă validarea și nici conținutul mesajului. Formularele se comportă la fel ca fără plugin.
 
 **4. Când API URL e completat și formularul se trimite corect, datele pleacă către API?**  
-**Da.** În acest caz, plugin-ul construiește payload-ul și apelează `wp_remote_post` – deci **trimite** datele către API. Nu se iau aici în calcul erorile de la API (site inaccesibil, timeout etc.), doar faptul că plugin-ul face request-ul.
+**Da**, dacă modul debug („log only”) este dezactivat. În acest caz, plugin-ul construiește payload-ul și apelează `wp_remote_post` – deci **trimite** datele către API. Când modul debug este activ (checkbox în setări), request-ul **nu** este făcut; se salvează doar ultimul payload în opțiunea `wpftab_last_debug_payload` și se afișează în pagina de setări. Nu se iau aici în calcul erorile de la API (site inaccesibil, timeout etc.), doar faptul că plugin-ul face sau nu request-ul.
 
 ---

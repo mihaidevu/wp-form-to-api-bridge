@@ -7,6 +7,8 @@ Dezinstalare / Stergere form / Curatare
 Nume option	Conținut 
 wpftab_api_url	URL API
 wpftab_api_key	Cheie API
+wpftab_debug_log_only	Mod debug: doar log, fără trimitere la API (1/0)
+wpftab_last_debug_payload	Ultimul payload (JSON) afișat în pagina de setări; suprascris la fiecare submit în mod debug
 wpftab_field_map	Mapare câmpuri formular (CF7)
 wpftab_elementor_field_map	Mapare câmpuri formular (Elementor)
 wpftab_utm_map	Mapare UTM

@@ -8,6 +8,8 @@ $wpftab_options = [
     'wpftab_utm_map',
     'wpftab_api_url',
     'wpftab_api_key',
+    'wpftab_debug_log_only',
+    'wpftab_last_debug_payload',
     'wpftab_custom_fields',
     'wpftab_questions_answers',
     'wpftab_elementor_field_map',

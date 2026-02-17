@@ -27,9 +27,14 @@ Analiză linie cu linie a fișierelor PHP din punct de vedere al securității (
 - Fără interogări SQL construite din input utilizator.
 - SSL verificat la apelurile către API.
 
+### Modul debug (log only)
+
+- Opțiunea **wpftab_debug_log_only** se salvează din același formular global (CSRF + `manage_options`); se stochează doar `'1'` sau `'0'`.
+- **wpftab_last_debug_payload** conține JSON generat de plugin (timestamp, URL, headers, body); nu provine direct din input utilizator; la afișare se folosește `esc_html()` – **OK** (fără XSS).
+
 ### Ce s-ar mai putea îmbunătăți
 
-Nu sunt riscuri critice rămase. Opțional, se poate adăuga logging minimal controlat de constantă pentru debugging în dev.
+Nu sunt riscuri critice rămase. Logging-ul de debug este controlat din UI sau prin constantă și este vizibil doar pentru admin.
 
 ---
 
@@ -44,8 +49,9 @@ Nu sunt riscuri critice rămase. Opțional, se poate adăuga logging minimal con
 | `admin_enqueue_scripts` | CSS doar pe paginile plugin-ului | **OK** |
 | `wp_enqueue_script` pentru traffic-cookie.js | URL generat intern | **OK** |
 | `glob(.../integrations/*.php)` | include fișiere din plugin | **OK** |
+| `wpftab_debug_log_payload()` | citește opțiunea `wpftab_debug_log_only`; scrie doar în `wpftab_last_debug_payload` (date construite de plugin) | **OK** |
 
-**Concluzie fișier:** Acces blocat fără WordPress, permisiuni admin corecte.
+**Concluzie fișier:** Acces blocat fără WordPress, permisiuni admin corecte. Debug nu expune input utilizator direct.
 
 ---
 
@@ -54,7 +60,7 @@ Nu sunt riscuri critice rămase. Opțional, se poate adăuga logging minimal con
 | Linie / zonă | Ce face | Verificare securitate |
 |--------------|---------|------------------------|
 | `WP_UNINSTALL_PLUGIN` check | rulează doar la uninstall | **OK** |
-| listă fixă de options + `delete_option` / `delete_site_option` | șterge doar opțiuni cunoscute | **OK** |
+| listă fixă de options + `delete_option` / `delete_site_option` | șterge doar opțiuni cunoscute (inclusiv `wpftab_debug_log_only`, `wpftab_last_debug_payload`) | **OK** |
 
 **Concluzie fișier:** Sigur; fără surse de atac în acest fișier.
 
@@ -96,8 +102,10 @@ Nu sunt riscuri critice rămase. Opțional, se poate adăuga logging minimal con
 | `check_admin_referer` | CSRF protecție | **OK** |
 | `current_user_can('manage_options')` | access control | **OK** |
 | `sanitize_text_field`, `esc_attr`, `esc_html` | sanitizare + output escaping | **OK** |
+| Checkbox debug `wpftab_debug_log_only` | salvat ca `'1'` / `'0'` (fără input liber) | **OK** |
+| Afișare „Last API call” | JSON din opțiune, afișat cu `esc_html()` | **OK** |
 
-**Concluzie fișier:** CSRF și XSS tratate corect; input sanitizat.
+**Concluzie fișier:** CSRF și XSS tratate corect; input sanitizat; payload debug escapat la output.
 
 ---
 

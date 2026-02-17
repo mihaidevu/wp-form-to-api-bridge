@@ -198,11 +198,15 @@ add_action('wpcf7_mail_sent', function($contact_form) {
             $data['questionsAndAnswers'] = $questionsAndAnswers;
         }
 
+        $headers = [
+            'Content-Type' => 'application/json',
+            'x-api-key' => $api_key
+        ];
+        if (wpftab_debug_log_payload($api_url, $headers, $data)) {
+            return;
+        }
         wp_remote_post($api_url, [
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'x-api-key' => $api_key
-            ],
+            'headers' => $headers,
             'body' => json_encode($data),
             'timeout' => 5,
             'blocking' => false,

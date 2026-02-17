@@ -134,6 +134,25 @@ function wpftab_consent_value($value) {
     return wpftab_is_checked_value($value) ? 'YES' : 'NO';
 }
 
+/**
+ * Dacă debug log-only e activ (checkbox în setări), salvează payload-ul în
+ * wpftab_last_debug_payload (suprascris la fiecare submit) și returnează true (nu trimite).
+ * Altfel returnează false.
+ */
+function wpftab_debug_log_payload($api_url, $headers, $data) {
+    if (get_option('wpftab_debug_log_only') !== '1') {
+        return false;
+    }
+    $entry = [
+        'timestamp' => current_time('Y-m-d H:i:s'),
+        'api_url'   => $api_url,
+        'headers'   => $headers,
+        'body'      => $data,
+    ];
+    update_option('wpftab_last_debug_payload', json_encode($entry, JSON_UNESCAPED_UNICODE));
+    return true;
+}
+
 foreach (glob(plugin_dir_path(__FILE__) . 'integrations/*.php') as $file) {
     require_once $file;
 }
