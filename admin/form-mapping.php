@@ -6,6 +6,8 @@ function wpftab_render_form_mapping() {
 
     $forms = wpftab_get_cf7_forms();
     $field_map = get_option('wpftab_field_map', []);
+    $send_to_api = get_option('wpftab_cf7_send_to_api', []);
+    if (!is_array($send_to_api)) $send_to_api = [];
     $custom_fields = get_option('wpftab_custom_fields', []);
     $questions_answers = get_option('wpftab_questions_answers', []);
     $name_fields = get_option('wpftab_cf7_name_field', []);
@@ -68,6 +70,11 @@ function wpftab_render_form_mapping() {
             update_option('wpftab_questions_answers', $questions_answers);
         }
         
+        if ($form_id > 0) {
+            $send_to_api[$form_id] = isset($_POST['wpftab_cf7_send_to_api']) && $_POST['wpftab_cf7_send_to_api'] === '1' ? '1' : '0';
+            if ($send_to_api[$form_id] === '0') unset($send_to_api[$form_id]);
+            update_option('wpftab_cf7_send_to_api', $send_to_api);
+        }
         if ($form_id > 0 && isset($_POST['wpftab_field_map']) && is_array($_POST['wpftab_field_map'])) {
             $form_fields = wpftab_get_cf7_form_fields($form_id);
             $current_field_names = array_keys($form_fields);
@@ -139,6 +146,14 @@ function wpftab_render_form_mapping() {
     }
     
     $existing_form_ids = array_map(function($f) { return $f->ID; }, $forms);
+    foreach ($send_to_api as $saved_form_id => $v) {
+        if (!in_array($saved_form_id, $existing_form_ids)) {
+            unset($send_to_api[$saved_form_id]);
+        }
+    }
+    if (count($send_to_api) !== count(get_option('wpftab_cf7_send_to_api', []))) {
+        update_option('wpftab_cf7_send_to_api', $send_to_api);
+    }
     foreach ($field_map as $saved_form_id => $mappings) {
         if (!in_array($saved_form_id, $existing_form_ids)) {
             unset($field_map[$saved_form_id]);
@@ -257,6 +272,12 @@ function wpftab_render_form_mapping() {
             </div>
             <?php if ($selected_form_id > 0): ?>
                 <input type="hidden" name="form_id" value="<?php echo esc_attr($selected_form_id); ?>">
+                <p style="margin: 12px 0;">
+                    <label>
+                        <input type="checkbox" name="wpftab_cf7_send_to_api" value="1" <?php checked(!empty($send_to_api[$selected_form_id])); ?>>
+                        <strong>Trimite la API</strong> – când e bifat, submit-urile acestui formular sunt trimise la Kingmaker API. Dacă nu e bifat, formularul nu se trimite.
+                    </label>
+                </p>
             <?php endif; ?>
 
             <?php if ($selected_form_id > 0 && !empty($form_fields)): ?>

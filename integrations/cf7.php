@@ -90,6 +90,11 @@ add_action('wpcf7_mail_sent', function($contact_form) {
             return;
         }
 
+        $send_to_api = get_option('wpftab_cf7_send_to_api', []);
+        if (!is_array($send_to_api) || empty($send_to_api[$form_id])) {
+            return;
+        }
+
         $data = [];
 
         $gdpr_list = $gdpr_fields[$form_id] ?? [];
@@ -202,9 +207,16 @@ add_action('wpcf7_mail_sent', function($contact_form) {
             'Content-Type' => 'application/json',
             'x-api-key' => $api_key
         ];
-        if (wpftab_debug_log_payload($api_url, $headers, $data)) {
+        $debug_context = [
+            'form_type'   => 'CF7',
+            'form_id'     => $form_id,
+            'send_to_api' => true,
+        ];
+        if (wpftab_debug_log_payload($api_url, $headers, $data, $debug_context)) {
+            wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => false]));
             return;
         }
+        wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => true]));
         wp_remote_post($api_url, [
             'headers' => $headers,
             'body' => json_encode($data),

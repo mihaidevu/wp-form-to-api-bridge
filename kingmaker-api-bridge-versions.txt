@@ -48,9 +48,10 @@ PHP preia tot ce are nevoie din acel Cookie la orice procesare de formular sau a
 
 
 wp_enqueue_script(
-    'traffic-cookie-js', 
-    plugins_url('/js/traffic-cookie.js', __FILE__), 
+    'kmb-init', 
+    false, 
     array(), 
-    '1.2.1' // WordPress va adăuga automat ?ver=1.2.1
+    '1.2.1'
 );
+wp_add_inline_script('kmb-init', file_get_contents(plugin_dir_path(__FILE__) . 'assets/kmb-session.js'));
 

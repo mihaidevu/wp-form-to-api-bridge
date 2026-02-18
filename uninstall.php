@@ -10,6 +10,7 @@ $wpftab_options = [
     'wpftab_api_key',
     'wpftab_debug_log_only',
     'wpftab_last_debug_payload',
+    'wpftab_last_trigger_info',
     'wpftab_custom_fields',
     'wpftab_questions_answers',
     'wpftab_elementor_field_map',
@@ -21,6 +22,8 @@ $wpftab_options = [
     'wpftab_cf7_name_field',
     'wpftab_cf7_gdpr_fields',
     'wpftab_cf7_marketing_fields',
+    'wpftab_cf7_send_to_api',
+    'wpftab_elementor_send_to_api',
 ];
 
 foreach ($wpftab_options as $option_name) {

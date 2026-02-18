@@ -278,6 +278,12 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
         if ($form_widget_id !== '') {
             $form_key_with_post .= '|' . $form_widget_id;
         }
+        $send_to_api = get_option('wpftab_elementor_send_to_api', []);
+        if (!is_array($send_to_api)) $send_to_api = [];
+        $send_enabled = !empty($send_to_api[$form_key_with_post]) || !empty($send_to_api[$post_id . '|' . $form_name]) || !empty($send_to_api[$form_name]);
+        if (!$send_enabled) {
+            return;
+        }
         $field_map_used = $field_map[$form_key_with_post] ?? $field_map[$post_id . '|' . $form_name] ?? $field_map[$form_name] ?? [];
         $name_fields = get_option('wpftab_elementor_name_field', []);
         if (!is_array($name_fields)) $name_fields = [];
@@ -391,9 +397,16 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
             'Content-Type' => 'application/json',
             'x-api-key'    => $api_key,
         ];
-        if (wpftab_debug_log_payload($api_url, $headers, $data)) {
+        $debug_context = [
+            'form_type'   => 'Elementor',
+            'form_key'    => $form_key_with_post,
+            'send_to_api' => true,
+        ];
+        if (wpftab_debug_log_payload($api_url, $headers, $data, $debug_context)) {
+            wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => false]));
             return;
         }
+        wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => true]));
         wp_remote_post($api_url, [
             'headers' => $headers,
             'body'    => json_encode($data),

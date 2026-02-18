@@ -9,6 +9,8 @@ function wpftab_render_form_mapping_elementor() {
     }
     $forms = wpftab_get_elementor_forms();
     $field_map = get_option('wpftab_elementor_field_map', []);
+    $send_to_api = get_option('wpftab_elementor_send_to_api', []);
+    if (!is_array($send_to_api)) $send_to_api = [];
     $custom_fields = get_option('wpftab_elementor_custom_fields', []);
     $questions_answers = get_option('wpftab_elementor_questions_answers', []);
     $name_fields = get_option('wpftab_elementor_name_field', []);
@@ -24,6 +26,9 @@ function wpftab_render_form_mapping_elementor() {
         }
         $form_key = sanitize_text_field($_POST['form_key'] ?? '');
         if ($form_key !== '') {
+            $send_to_api[$form_key] = isset($_POST['wpftab_elementor_send_to_api']) && $_POST['wpftab_elementor_send_to_api'] === '1' ? '1' : '0';
+            if ($send_to_api[$form_key] === '0') unset($send_to_api[$form_key]);
+            update_option('wpftab_elementor_send_to_api', $send_to_api);
             if (isset($_POST['wpftab_elementor_custom_fields']) && is_array($_POST['wpftab_elementor_custom_fields'])) {
                 $custom_fields[$form_key] = [];
                 foreach ($_POST['wpftab_elementor_custom_fields'] as $field_data) {
@@ -147,6 +152,10 @@ function wpftab_render_form_mapping_elementor() {
         if (!in_array($saved_key, $existing_form_keys)) unset($marketing_fields[$saved_key]);
     }
     if (count($marketing_fields) !== count(get_option('wpftab_elementor_marketing_fields', []))) update_option('wpftab_elementor_marketing_fields', $marketing_fields);
+    foreach ($send_to_api as $saved_key => $v) {
+        if (!in_array($saved_key, $existing_form_keys)) unset($send_to_api[$saved_key]);
+    }
+    if (count($send_to_api) !== count(get_option('wpftab_elementor_send_to_api', []))) update_option('wpftab_elementor_send_to_api', $send_to_api);
 
     if ($selected_form_key === '' && !empty($forms)) $selected_form_key = $forms[0]['key'];
     $form_fields = [];
@@ -212,6 +221,12 @@ function wpftab_render_form_mapping_elementor() {
         <form method="post" id="wpftab-form-mapping-elementor-form">
             <?php wp_nonce_field('wpftab_save_form_map_elementor', 'wpftab_nonce_elementor'); ?>
             <input type="hidden" name="form_key" value="<?php echo esc_attr($selected_form_key); ?>">
+            <p style="margin: 12px 0;">
+                <label>
+                    <input type="checkbox" name="wpftab_elementor_send_to_api" value="1" <?php checked(!empty($send_to_api[$selected_form_key])); ?>>
+                    <strong>Trimite la API</strong> – când e bifat, submit-urile acestui formular sunt trimise la Kingmaker API. Dacă nu e bifat, formularul nu se trimite.
+                </label>
+            </p>
             <p><strong>Form key:</strong> <code><?php echo esc_html($selected_form_key); ?></code></p>
             <?php if (!empty($form_fields)): ?>
                 <h3>Field Mapping</h3>

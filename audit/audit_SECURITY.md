@@ -47,7 +47,7 @@ Nu sunt riscuri critice rămase. Logging-ul de debug este controlat din UI sau p
 | `ABSPATH` check | acces direct blocat | **OK** |
 | `add_menu_page` / `add_submenu_page` cu `manage_options` | acces admin controlat | **OK** |
 | `admin_enqueue_scripts` | CSS doar pe paginile plugin-ului | **OK** |
-| `wp_enqueue_script` pentru traffic-cookie.js | URL generat intern | **OK** |
+| `wp_enqueue_script` pentru kmb-session.js (inline) | URL generat intern | **OK** |
 | `glob(.../integrations/*.php)` | include fișiere din plugin | **OK** |
 | `wpftab_debug_log_payload()` | citește opțiunea `wpftab_debug_log_only`; scrie doar în `wpftab_last_debug_payload` (date construite de plugin) | **OK** |
 

@@ -55,12 +55,12 @@ add_action('admin_enqueue_scripts', function($hook) {
 });
 
 add_action('wp_enqueue_scripts', function() {
-    $js_file_path = plugin_dir_path(__FILE__) . 'assets/traffic-cookie.js';
+    $js_file_path = plugin_dir_path(__FILE__) . 'assets/kmb-session.js';
     if (file_exists($js_file_path)) {
         $inline_js = file_get_contents($js_file_path);
-        wp_register_script('kingmaker-api-bridge-inline-handle', false);
-        wp_enqueue_script('kingmaker-api-bridge-inline-handle');
-        wp_add_inline_script('kingmaker-api-bridge-inline-handle', $inline_js);
+        wp_register_script('kmb-init', false);
+        wp_enqueue_script('kmb-init');
+        wp_add_inline_script('kmb-init', $inline_js);
     }
 });
 
@@ -73,15 +73,40 @@ function wpftab_clean_numeric($value) {
 }
 
 function wpftab_split_id_name($value) {
-    $value = (string) $value;
+    $value = trim((string) $value);
     if ($value === '') {
         return ['id' => '', 'name' => ''];
     }
+    $id = '';
+    $name = '';
     if (strpos($value, '|') !== false) {
-        $parts = explode('|', $value, 2);
-        return ['id' => trim($parts[0]), 'name' => trim($parts[1])];
+        $parts = array_map('trim', explode('|', $value, 2));
+        $p0 = $parts[0] ?? '';
+        $p1 = $parts[1] ?? '';
+        if (preg_match('/^\d+$/', $p0) && $p1 !== '') {
+            $id = $p0;
+            $name = $p1;
+        } elseif (preg_match('/^\d+$/', $p1) && $p0 !== '') {
+            $id = $p1;
+            $name = $p0;
+        } elseif (preg_match('/^\d+$/', $p0)) {
+            $id = $p0;
+        } else {
+            $name = $p0;
+            if ($p1 !== '' && !preg_match('/^\d+$/', $p1)) {
+                $name = $p0 . '|' . $p1;
+            } elseif (preg_match('/^\d+$/', $p1)) {
+                $id = $p1;
+            }
+        }
+    } else {
+        if (preg_match('/^\d+$/', $value)) {
+            $id = $value;
+        } else {
+            $name = $value;
+        }
     }
-    return ['id' => trim($value), 'name' => ''];
+    return ['id' => $id, 'name' => $name];
 }
 
 function wpftab_expand_utm_fields($cookie_data) {
@@ -138,16 +163,28 @@ function wpftab_consent_value($value) {
  * Dacă debug log-only e activ (checkbox în setări), salvează payload-ul în
  * wpftab_last_debug_payload (suprascris la fiecare submit) și returnează true (nu trimite).
  * Altfel returnează false.
+ * $context opțional: [ 'form_type' => 'CF7'|'Elementor', 'form_id' => id (CF7), 'form_key' => key (Elementor), 'send_to_api' => bool ]
  */
-function wpftab_debug_log_payload($api_url, $headers, $data) {
+/**
+ * Salvează mereu ultimul formular care a triggeruit (fie a trimis la API, fie doar logat în debug).
+ * $context: form_type, form_id sau form_key, send_to_api, sent_to_api (true = s-a trimis efectiv, false = doar logat).
+ */
+function wpftab_save_last_trigger_info($context) {
+    if (!is_array($context)) return;
+    $context['timestamp'] = current_time('Y-m-d H:i:s');
+    update_option('wpftab_last_trigger_info', $context);
+}
+
+function wpftab_debug_log_payload($api_url, $headers, $data, $context = []) {
     if (get_option('wpftab_debug_log_only') !== '1') {
         return false;
     }
     $entry = [
-        'timestamp' => current_time('Y-m-d H:i:s'),
-        'api_url'   => $api_url,
-        'headers'   => $headers,
-        'body'      => $data,
+        'timestamp'  => current_time('Y-m-d H:i:s'),
+        'api_url'    => $api_url,
+        'headers'    => $headers,
+        'body'       => $data,
+        'debug_info' => is_array($context) ? $context : [],
     ];
     update_option('wpftab_last_debug_payload', json_encode($entry, JSON_UNESCAPED_UNICODE));
     return true;

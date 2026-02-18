@@ -6,6 +6,8 @@ function wpftab_render_global_settings() {
     $api_key = get_option('wpftab_api_key', '');
     $debug_log_only = get_option('wpftab_debug_log_only', '0');
     $last_debug_payload = get_option('wpftab_last_debug_payload', '');
+    $last_trigger_info = get_option('wpftab_last_trigger_info', []);
+    if (!is_array($last_trigger_info)) $last_trigger_info = [];
     $default_utm_map = [
         'traffic_source' => '',
         'utm_source' => '',
@@ -105,6 +107,27 @@ function wpftab_render_global_settings() {
             </table>
 
             <h2 style="margin-top: 30px;">Debug</h2>
+            <?php if (!empty($last_trigger_info)): ?>
+                <?php
+                $tr = $last_trigger_info;
+                $form_label = '';
+                if (!empty($tr['form_type'])) {
+                    if ($tr['form_type'] === 'CF7' && isset($tr['form_id'])) {
+                        $form_label = 'CF7, form ID: ' . (int) $tr['form_id'];
+                    } elseif ($tr['form_type'] === 'Elementor' && !empty($tr['form_key'])) {
+                        $form_label = 'Elementor, form key: ' . esc_html($tr['form_key']);
+                    } else {
+                        $form_label = esc_html($tr['form_type']);
+                    }
+                }
+                $sent = !empty($tr['sent_to_api']);
+                $when = !empty($tr['timestamp']) ? ' la ' . esc_html($tr['timestamp']) : '';
+                ?>
+                <p class="wpftab-last-trigger" style="margin-bottom: 16px; padding: 12px 14px; background: #f0f6fc; border: 1px solid #2271b1; border-left-width: 4px;">
+                    <strong>Ultimul formular triggeruit</strong><?php echo $when; ?>: <strong><?php echo $form_label ?: '—'; ?></strong><br>
+                    <strong>Trimis la API:</strong> <?php echo $sent ? 'Da' : 'Nu'; ?> (<?php echo $sent ? 's-a trimis efectiv' : 'doar logat, debug activ'; ?>)
+                </p>
+            <?php endif; ?>
             <p>When enabled, form submissions are not sent to the API. The last payload is stored and shown below (overwritten on each new submit).</p>
             <table class="wp-list-table widefat fixed striped">
                 <tr>
@@ -118,13 +141,37 @@ function wpftab_render_global_settings() {
                 </tr>
             </table>
             <h3 style="margin-top: 20px;">Last API call (payload)</h3>
+            <?php
+            if ($last_debug_payload !== '') {
+                $decoded = json_decode($last_debug_payload, true);
+                if (is_array($decoded) && !empty($decoded['debug_info'])) {
+                    $info = $decoded['debug_info'];
+                    $form_label = '';
+                    if (!empty($info['form_type'])) {
+                        if ($info['form_type'] === 'CF7' && isset($info['form_id'])) {
+                            $form_label = 'CF7, form ID: ' . (int) $info['form_id'];
+                        } elseif ($info['form_type'] === 'Elementor' && !empty($info['form_key'])) {
+                            $form_label = 'Elementor, form key: ' . esc_html($info['form_key']);
+                        } else {
+                            $form_label = esc_html($info['form_type']);
+                        }
+                    }
+                    $send_label = isset($info['send_to_api']) && $info['send_to_api'] ? 'Da' : 'Nu';
+                    echo '<p class="wpftab-debug-meta" style="margin-bottom: 8px; padding: 8px 12px; background: #f0f0f1; border-left: 4px solid #2271b1;"><strong>Formular trigger:</strong> ' . $form_label . ' &nbsp;|&nbsp; <strong>Se trimite la API:</strong> ' . $send_label . ' (în mod normal; cu debug activ doar se loghează)</p>';
+                }
+            }
+            ?>
             <div class="wpftab-debug-payload" style="background: #f6f7f7; border: 1px solid #c3c4c7; padding: 12px; max-height: 400px; overflow: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all;">
                 <?php
                 if ($last_debug_payload === '') {
                     echo esc_html('No submission recorded yet. Enable debug mode above and submit a form to see the payload here.');
                 } else {
                     $decoded = json_decode($last_debug_payload, true);
-                    echo esc_html($decoded ? json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : $last_debug_payload);
+                    if ($decoded) {
+                        echo esc_html(json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    } else {
+                        echo esc_html($last_debug_payload);
+                    }
                 }
                 ?>
             </div>
