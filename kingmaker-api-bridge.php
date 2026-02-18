@@ -175,10 +175,10 @@ function wpftab_save_last_trigger_info($context) {
     update_option('wpftab_last_trigger_info', $context);
 }
 
-function wpftab_debug_log_payload($api_url, $headers, $data, $context = []) {
-    if (get_option('wpftab_debug_log_only') !== '1') {
-        return false;
-    }
+/**
+ * Salvează payload-ul în wpftab_last_debug_payload (folosit și când se trimite efectiv, nu doar în debug).
+ */
+function wpftab_save_last_payload($api_url, $headers, $data, $context = []) {
     $entry = [
         'timestamp'  => current_time('Y-m-d H:i:s'),
         'api_url'    => $api_url,
@@ -187,6 +187,13 @@ function wpftab_debug_log_payload($api_url, $headers, $data, $context = []) {
         'debug_info' => is_array($context) ? $context : [],
     ];
     update_option('wpftab_last_debug_payload', json_encode($entry, JSON_UNESCAPED_UNICODE));
+}
+
+function wpftab_debug_log_payload($api_url, $headers, $data, $context = []) {
+    if (get_option('wpftab_debug_log_only') !== '1') {
+        return false;
+    }
+    wpftab_save_last_payload($api_url, $headers, $data, $context);
     return true;
 }
 

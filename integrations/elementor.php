@@ -406,6 +406,7 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
             wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => false]));
             return;
         }
+        wpftab_save_last_payload($api_url, $headers, $data, $debug_context);
         wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => true]));
         wp_remote_post($api_url, [
             'headers' => $headers,

@@ -140,7 +140,14 @@ function wpftab_render_global_settings() {
                     </td>
                 </tr>
             </table>
-            <h3 style="margin-top: 20px;">Last API call (payload)</h3>
+            <h3 style="margin-top: 20px;">Ultimul payload (JSON)</h3>
+            <?php if ($last_debug_payload !== ''): ?>
+                <?php if ($debug_log_only === '1'): ?>
+                    <p style="margin-bottom: 8px; color: #d63638;"><strong>Cu debug activ acest payload nu s-a trimis la API</strong> – a fost doar salvat aici pentru verificare.</p>
+                <?php else: ?>
+                    <p style="margin-bottom: 8px; color: #00a32a;"><strong>Acest payload s-a trimis la API.</strong></p>
+                <?php endif; ?>
+            <?php endif; ?>
             <?php
             if ($last_debug_payload !== '') {
                 $decoded = json_decode($last_debug_payload, true);
