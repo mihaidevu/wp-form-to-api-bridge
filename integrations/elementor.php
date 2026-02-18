@@ -390,7 +390,9 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
                 }
                 if (strtolower($question) === 'category') {
                     $answers = array_map(function($answer) {
-                        return strtolower((string) $answer);
+                        $v = strtolower((string) $answer);
+                        if ($v === 'vila') return 'vilă';
+                        return $v;
                     }, $answers);
                 }
                 $questionsAndAnswers[] = [ 'question' => $question, 'answers' => $answers ];
@@ -405,6 +407,7 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
         $headers = [
             'Content-Type' => 'application/json',
             'x-api-key'    => $api_key,
+            'Origin'       => wpftab_api_origin(),
         ];
         $debug_context = [
             'form_type'   => 'Elementor',

@@ -199,7 +199,9 @@ add_action('wpcf7_mail_sent', function($contact_form) {
                 }
                 if (strtolower($question) === 'category') {
                     $answers = array_map(function($answer) {
-                        return strtolower((string) $answer);
+                        $v = strtolower((string) $answer);
+                        if ($v === 'vila') return 'vilă';
+                        return $v;
                     }, $answers);
                 }
                 $questionsAndAnswers[] = [ 'question' => $question, 'answers' => $answers ];
@@ -211,7 +213,8 @@ add_action('wpcf7_mail_sent', function($contact_form) {
 
         $headers = [
             'Content-Type' => 'application/json',
-            'x-api-key' => $api_key
+            'x-api-key'    => $api_key,
+            'Origin'       => wpftab_api_origin(),
         ];
         $debug_context = [
             'form_type'   => 'CF7',

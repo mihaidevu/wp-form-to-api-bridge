@@ -159,6 +159,10 @@ function wpftab_consent_value($value) {
     return wpftab_is_checked_value($value) ? 'YES' : 'NO';
 }
 
+function wpftab_api_origin() {
+    return preg_replace('#^([^/]+//[^/]+).*#', '$1', home_url());
+}
+
 /**
  * Dacă debug log-only e activ (checkbox în setări), salvează payload-ul în
  * wpftab_last_debug_payload (suprascris la fiecare submit) și returnează true (nu trimite).
