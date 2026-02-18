@@ -121,11 +121,19 @@ function wpftab_render_global_settings() {
                     }
                 }
                 $sent = !empty($tr['sent_to_api']);
+                $had_send_checked = isset($tr['send_to_api']) && $tr['send_to_api'];
                 $when = !empty($tr['timestamp']) ? ' la ' . esc_html($tr['timestamp']) : '';
+                if ($sent) {
+                    $reason = 's-a trimis efectiv';
+                } elseif (!$had_send_checked) {
+                    $reason = 'formularul nu avea „Trimite la API” bifat';
+                } else {
+                    $reason = 'doar logat (debug activ)';
+                }
                 ?>
                 <p class="wpftab-last-trigger" style="margin-bottom: 16px; padding: 12px 14px; background: #f0f6fc; border: 1px solid #2271b1; border-left-width: 4px;">
                     <strong>Ultimul formular triggeruit</strong><?php echo $when; ?>: <strong><?php echo $form_label ?: '—'; ?></strong><br>
-                    <strong>Trimis la API:</strong> <?php echo $sent ? 'Da' : 'Nu'; ?> (<?php echo $sent ? 's-a trimis efectiv' : 'doar logat, debug activ'; ?>)
+                    <strong>Trimis la API:</strong> <?php echo $sent ? 'Da' : 'Nu'; ?> (<?php echo esc_html($reason); ?>)
                 </p>
             <?php endif; ?>
             <p>When enabled, form submissions are not sent to the API. The last payload is stored and shown below (overwritten on each new submit).</p>
@@ -141,12 +149,24 @@ function wpftab_render_global_settings() {
                 </tr>
             </table>
             <h3 style="margin-top: 20px;">Ultimul payload (JSON)</h3>
-            <?php if ($last_debug_payload !== ''): ?>
-                <?php if ($debug_log_only === '1'): ?>
-                    <p style="margin-bottom: 8px; color: #d63638;"><strong>Cu debug activ acest payload nu s-a trimis la API</strong> – a fost doar salvat aici pentru verificare.</p>
-                <?php else: ?>
-                    <p style="margin-bottom: 8px; color: #00a32a;"><strong>Acest payload s-a trimis la API.</strong></p>
-                <?php endif; ?>
+            <?php
+            $payload_sent = null;
+            if ($last_debug_payload !== '') {
+                $decoded_payload = json_decode($last_debug_payload, true);
+                if (is_array($decoded_payload) && !empty($decoded_payload['debug_info']) && array_key_exists('sent_to_api', $decoded_payload['debug_info'])) {
+                    $payload_sent = !empty($decoded_payload['debug_info']['sent_to_api']);
+                }
+            }
+            if ($payload_sent === true): ?>
+                <p style="margin-bottom: 8px; color: #00a32a;"><strong>Acest payload s-a trimis la API.</strong> (Formularul avea „Trimite la API” bifat și debug era dezactivat.)</p>
+            <?php elseif ($payload_sent === false): ?>
+                <p style="margin-bottom: 8px; color: #d63638;"><strong>Acest payload nu s-a trimis la API.</strong> (Formularul avea „Trimite la API” bifat, dar debug era activ – doar salvat.)</p>
+            <?php elseif ($last_debug_payload !== '' && !empty($last_trigger_info)): ?>
+                <?php $payload_sent = !empty($last_trigger_info['sent_to_api']); ?>
+                <p style="margin-bottom: 8px; color: <?php echo $payload_sent ? '#00a32a' : '#d63638'; ?>;"><strong>Acest payload <?php echo $payload_sent ? 's-a trimis' : 'nu s-a trimis'; ?> la API.</strong></p>
+            <?php endif; ?>
+            <?php if ($last_debug_payload !== '' && !empty($last_trigger_info) && empty($last_trigger_info['send_to_api'])): ?>
+                <p style="margin-bottom: 8px; color: #856404; background: #fff3cd; padding: 8px 12px; border-left: 4px solid #ffc107;">Ultimul formular nu trimite la API. Payload-ul de mai jos este de la o trimitere anterioară.</p>
             <?php endif; ?>
             <?php
             if ($last_debug_payload !== '') {
@@ -163,8 +183,9 @@ function wpftab_render_global_settings() {
                             $form_label = esc_html($info['form_type']);
                         }
                     }
-                    $send_label = isset($info['send_to_api']) && $info['send_to_api'] ? 'Da' : 'Nu';
-                    echo '<p class="wpftab-debug-meta" style="margin-bottom: 8px; padding: 8px 12px; background: #f0f0f1; border-left: 4px solid #2271b1;"><strong>Formular trigger:</strong> ' . $form_label . ' &nbsp;|&nbsp; <strong>Se trimite la API:</strong> ' . $send_label . ' (în mod normal; cu debug activ doar se loghează)</p>';
+                    $had_send_checked = isset($info['send_to_api']) && $info['send_to_api'];
+                    $actually_sent = isset($info['sent_to_api']) && $info['sent_to_api'];
+                    echo '<p class="wpftab-debug-meta" style="margin-bottom: 8px; padding: 8px 12px; background: #f0f0f1; border-left: 4px solid #2271b1;"><strong>Formular:</strong> ' . $form_label . ' &nbsp;|&nbsp; <strong>Avea „Trimite la API” bifat:</strong> ' . ($had_send_checked ? 'Da' : 'Nu') . ' &nbsp;|&nbsp; <strong>S-a trimis efectiv la API:</strong> ' . ($actually_sent ? 'Da' : 'Nu') . '</p>';
                 }
             }
             ?>

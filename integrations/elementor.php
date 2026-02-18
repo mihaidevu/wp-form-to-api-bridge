@@ -280,8 +280,17 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
         }
         $send_to_api = get_option('wpftab_elementor_send_to_api', []);
         if (!is_array($send_to_api)) $send_to_api = [];
-        $send_enabled = !empty($send_to_api[$form_key_with_post]) || !empty($send_to_api[$post_id . '|' . $form_name]) || !empty($send_to_api[$form_name]);
+        $send_enabled = !empty($send_to_api[$form_key_with_post]) || !empty($send_to_api[$post_id . '|' . $form_name]);
+        if (!$send_enabled && $form_key_with_post === $form_name) {
+            $send_enabled = !empty($send_to_api[$form_name]);
+        }
         if (!$send_enabled) {
+            wpftab_save_last_trigger_info([
+                'form_type'   => 'Elementor',
+                'form_key'    => $form_key_with_post,
+                'send_to_api' => false,
+                'sent_to_api' => false,
+            ]);
             return;
         }
         $field_map_used = $field_map[$form_key_with_post] ?? $field_map[$post_id . '|' . $form_name] ?? $field_map[$form_name] ?? [];
@@ -402,11 +411,11 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
             'form_key'    => $form_key_with_post,
             'send_to_api' => true,
         ];
-        if (wpftab_debug_log_payload($api_url, $headers, $data, $debug_context)) {
+        if (wpftab_debug_log_payload($api_url, $headers, $data, array_merge($debug_context, ['sent_to_api' => false]))) {
             wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => false]));
             return;
         }
-        wpftab_save_last_payload($api_url, $headers, $data, $debug_context);
+        wpftab_save_last_payload($api_url, $headers, $data, array_merge($debug_context, ['sent_to_api' => true]));
         wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => true]));
         wp_remote_post($api_url, [
             'headers' => $headers,

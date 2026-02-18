@@ -92,6 +92,12 @@ add_action('wpcf7_mail_sent', function($contact_form) {
 
         $send_to_api = get_option('wpftab_cf7_send_to_api', []);
         if (!is_array($send_to_api) || empty($send_to_api[$form_id])) {
+            wpftab_save_last_trigger_info([
+                'form_type'   => 'CF7',
+                'form_id'     => $form_id,
+                'send_to_api' => false,
+                'sent_to_api' => false,
+            ]);
             return;
         }
 
@@ -212,11 +218,11 @@ add_action('wpcf7_mail_sent', function($contact_form) {
             'form_id'     => $form_id,
             'send_to_api' => true,
         ];
-        if (wpftab_debug_log_payload($api_url, $headers, $data, $debug_context)) {
+        if (wpftab_debug_log_payload($api_url, $headers, $data, array_merge($debug_context, ['sent_to_api' => false]))) {
             wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => false]));
             return;
         }
-        wpftab_save_last_payload($api_url, $headers, $data, $debug_context);
+        wpftab_save_last_payload($api_url, $headers, $data, array_merge($debug_context, ['sent_to_api' => true]));
         wpftab_save_last_trigger_info(array_merge($debug_context, ['sent_to_api' => true]));
         wp_remote_post($api_url, [
             'headers' => $headers,
