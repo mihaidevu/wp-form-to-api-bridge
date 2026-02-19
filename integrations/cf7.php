@@ -197,6 +197,10 @@ add_action('wpcf7_mail_sent', function($contact_form) {
                         $answers = [];
                     }
                 }
+                if (count($answers) === 1 && strpos($answers[0], ',') !== false) {
+                    $answers = array_values(array_map('trim', explode(',', $answers[0])));
+                    $answers = array_filter($answers);
+                }
                 if (strtolower($question) === 'category') {
                     $answers = array_map(function($answer) {
                         $v = strtolower((string) $answer);
