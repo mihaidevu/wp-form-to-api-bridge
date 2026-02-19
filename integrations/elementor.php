@@ -391,7 +391,7 @@ add_action('elementor_pro/forms/new_record', function($record, $handler) {
                 if (strtolower($question) === 'category') {
                     $answers = array_map(function($answer) {
                         $v = strtolower((string) $answer);
-                        if ($v === 'vila') return 'vilă';
+                        $v = preg_replace('/\bvila\b/u', 'vilă', $v);
                         return $v;
                     }, $answers);
                 }

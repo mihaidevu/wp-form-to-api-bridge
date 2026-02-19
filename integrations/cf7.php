@@ -200,7 +200,7 @@ add_action('wpcf7_mail_sent', function($contact_form) {
                 if (strtolower($question) === 'category') {
                     $answers = array_map(function($answer) {
                         $v = strtolower((string) $answer);
-                        if ($v === 'vila') return 'vilă';
+                        $v = preg_replace('/\bvila\b/u', 'vilă', $v);
                         return $v;
                     }, $answers);
                 }
